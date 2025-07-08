@@ -1,1 +1,41 @@
-data-assistant-project/venv/
+# Virtual Environment
+venv/
+env/
+.venv/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Secrets and Config
+.env.local
+config.py
+my_config.py
+secrets/
+
+# Data
+*.db
+*.sqlite
+*.csv
+data/raw/
+data/temp/
