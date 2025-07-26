@@ -7,17 +7,10 @@ from dataclasses import dataclass
 from anthropic import Anthropic
 import logging
 import os
-import sys
 from pathlib import Path
 
-# Add project root to Python path for imports when running as script
-if __name__ == "__main__":
-    current_file = Path(__file__).resolve()
-    project_root = current_file.parent.parent.parent
-    sys.path.append(str(project_root))
-    from src.utils.my_config import MyConfig
-else:
-    from ..utils.my_config import MyConfig  # Relativer Import für Package-Nutzung
+# Import modules using the installed package
+from new_data_assistant_project.src.utils.my_config import MyConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +32,7 @@ class ReActAgent:
     Follows ReAct (Reasoning and Acting) paradigm for natural language to SQL conversion.
     """
     
-    def __init__(self, database_path: str = "data_assistant_project/src/database/superstore.db"):
+    def __init__(self, database_path: str = "new_data_assistant_project/src/database/superstore.db"):
         """
         Initialize ReAct Agent with database connection and API client.
         
@@ -119,6 +112,65 @@ class ReActAgent:
         
         return min(complexity_score, 5)
     
+    def _clean_sql_query(self, sql_query: str) -> str:
+        """
+        Comprehensive SQL query cleaning to remove markdown formatting and fix SQLite compatibility.
+        """
+        # Remove markdown code blocks
+        sql_query = re.sub(r'```sql\s*', '', sql_query, flags=re.MULTILINE | re.IGNORECASE)
+        sql_query = re.sub(r'\s*```', '', sql_query, flags=re.MULTILINE)
+        
+        # Remove Anthropic API type annotations that may have leaked through
+        sql_query = re.sub(r"', type='text'\)", '', sql_query)
+        sql_query = re.sub(r"type='text'", '', sql_query)
+        
+        # Remove standalone 'sql' lines
+        sql_query = re.sub(r'^\s*sql\s*$', '', sql_query, flags=re.MULTILINE | re.IGNORECASE)
+        sql_query = re.sub(r'^\s*sql\s*\n', '', sql_query, flags=re.MULTILINE | re.IGNORECASE)
+        
+        # Find the actual SQL statement (starts with SELECT, INSERT, UPDATE, DELETE, WITH, etc.)
+        lines = sql_query.split('\n')
+        sql_lines = []
+        found_sql_start = False
+        
+        for line in lines:
+            line_stripped = line.strip().upper()
+            
+            # Start collecting lines when we find a SQL statement
+            if not found_sql_start and any(line_stripped.startswith(keyword) for keyword in 
+                                         ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'WITH', 'CREATE', 'DROP', 'ALTER']):
+                found_sql_start = True
+                sql_lines.append(line)
+            elif found_sql_start:
+                # Stop collecting if we hit explanatory text
+                if (line.strip() and 
+                    not line_stripped.startswith(('FROM', 'WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'OFFSET', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'UNION', 'AND', 'OR', 'ON', 'AS', 'IN', 'EXISTS', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', ')', '(', ',')) and
+                    not re.match(r'^\s*[A-Za-z_][A-Za-z0-9_]*\s*[,\)]', line) and  # Column names
+                    not re.match(r'^\s*\d+', line) and  # Numbers
+                    not re.match(r'^\s*[\'"]', line) and  # String literals
+                    not re.match(r'^\s*[-+*/=<>!]', line) and  # Operators
+                    ('This query' in line or 'provides' in line or 'shows' in line or 'The results' in line)):
+                    break
+                sql_lines.append(line)
+        
+        if sql_lines:
+            sql_query = '\n'.join(sql_lines)
+        
+        # Final cleanup
+        sql_query = sql_query.strip()
+        
+        # Remove any remaining trailing quotes or artifacts
+        if sql_query.endswith("'"):
+            sql_query = sql_query[:-1]
+        
+        # Remove leading/trailing whitespace and newlines
+        sql_query = sql_query.strip('\n\r\t ')
+        
+        # Keep double quotes as they work in SQLite - no need to change them
+        # The issue was in content extraction, not the SQL itself
+        
+        return sql_query
+    
     def _generate_sql_with_reasoning(self, user_query: str) -> Tuple[str, str]:
         """
         Generate SQL query using ReAct reasoning pattern.
@@ -157,8 +209,15 @@ class ReActAgent:
                 }]
             )
             
-            # Extract content from the response
-            content = response.content[0].text if hasattr(response.content[0], 'text') else str(response.content[0])
+            # Extract content from the response properly for TextBlock objects
+            content = ""
+            for block in response.content:
+                if hasattr(block, 'text'):
+                    content += block.text
+                else:
+                    content += str(block)
+            
+            # Content successfully extracted from API
             
             # Extract reasoning and SQL
             if "REASONING:" in content and "SQL:" in content:
@@ -166,15 +225,14 @@ class ReActAgent:
                 reasoning = parts[0].replace("REASONING:", "").strip()
                 sql_query = parts[1].strip()
                 
-                # Clean SQL query
-                sql_query = re.sub(r'^```sql\s*', '', sql_query)
-                sql_query = re.sub(r'\s*```$', '', sql_query)
-                sql_query = sql_query.strip()
+                # Clean SQL query comprehensively
+                sql_query = self._clean_sql_query(sql_query)
                 
                 return sql_query, reasoning
             else:
-                # Fallback if format is not followed
-                return content.strip(), "Reasoning not available"
+                # Fallback if format is not followed - try to extract SQL anyway
+                cleaned_content = self._clean_sql_query(content)
+                return cleaned_content, "Reasoning not available"
                 
         except Exception as e:
             logger.error(f"Error generating SQL: {e}")
@@ -282,12 +340,7 @@ class ReActAgent:
             # Sammle alle Thinking/Text-Blöcke
             explanation = ""
             for block in response.content:
-                if hasattr(block, 'text'):
-                    explanation += block.text + "\n\n"
-                elif isinstance(block, dict):
-                    explanation += block.get('content', '') + "\n\n"
-                else:
-                    explanation += str(block) + "\n\n"
+                explanation += str(block) + "\n\n"
 
             return explanation.strip() if explanation else "No reasoning blocks found."
 

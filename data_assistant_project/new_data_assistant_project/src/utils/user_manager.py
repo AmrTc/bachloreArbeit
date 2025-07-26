@@ -22,11 +22,28 @@ class UserManager:
         Args:
             csv_path: Path to users.csv file. If None, uses default path
         """
-        # Get project root directory
+        # Get project root directory - handle nested new_data_assistant_project structure
         current_file = Path(__file__).resolve()
-        while current_file.name != 'data_assistant_project' and current_file.parent != current_file:
-            current_file = current_file.parent
+        
+        # Find the new_data_assistant_project directory (the actual project)
         project_root = current_file
+        while project_root.name != 'new_data_assistant_project' and project_root.parent != project_root:
+            project_root = project_root.parent
+        
+        # If we didn't find new_data_assistant_project by going up, try workspace root approach
+        if project_root.name != 'new_data_assistant_project':
+            # We might be at workspace root, look for new_data_assistant_project
+            workspace_root = current_file
+            while workspace_root.parent != workspace_root:
+                new_project = workspace_root / 'new_data_assistant_project'
+                if new_project.exists() and (new_project / 'src').exists():
+                    project_root = new_project
+                    break
+                workspace_root = workspace_root.parent
+        
+        # Verify we found the correct project root by checking for src directory
+        if not (project_root / 'src').exists():
+            raise FileNotFoundError(f"Could not find new_data_assistant_project with src/ directory. Current path: {current_file}")
         
         # Set default path relative to project root
         default_path = project_root / 'data' / 'user_profiles'

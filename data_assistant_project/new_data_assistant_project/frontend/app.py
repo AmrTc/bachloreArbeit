@@ -1,36 +1,23 @@
 import os
-import sys
-from pathlib import Path
 import streamlit as st
 import time
 from datetime import datetime
 import logging
+from typing import Tuple, Optional, cast
+from new_data_assistant_project.src.utils.secrets_path_utils import SecretsPathUtils
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Add project root to Python path for imports
-current_file = Path(__file__).resolve()
-project_root = current_file.parent.parent
-sys.path.append(str(project_root))
+# Clear Streamlit cache to avoid issues with imports
+st.cache_data.clear()
+st.cache_resource.clear()
 
-# Now we can import our modules
-from src.utils.path_utils import get_project_root, get_absolute_path, get_relative_path
-from src.utils.user_manager import UserManager
-from src.agents.ReAct_agent import ReActAgent
-from src.utils.my_config import MyConfig
-
-# Initialize configuration
-try:
-    config = MyConfig()
-    api_key = config.get_api_key()
-    if not api_key:
-        st.error("No API key found in configuration. Please check your .env file.")
-        logger.error("No API key found in configuration")
-except Exception as e:
-    st.error(f"Failed to load configuration: {str(e)}")
-    logger.error(f"Configuration error: {e}")
+# Import modules using the installed package (no sys.path manipulation needed)
+from new_data_assistant_project.src.utils.path_utils import get_project_root, get_absolute_path, get_relative_path
+from new_data_assistant_project.src.utils.user_manager import UserManager
+from new_data_assistant_project.src.agents.clt_cft_agent import CLTCFTAgent, QueryResult, ExplanationContent
 
 # Konfiguration der Seite
 st.set_page_config(
@@ -50,22 +37,51 @@ if "messages" not in st.session_state:
 if "user_manager" not in st.session_state:
     st.session_state.user_manager = UserManager()  # Removed csv_path parameter to use default
 
-if "db_path" not in st.session_state:
-    st.session_state.db_path = get_absolute_path(DEFAULT_DB_PATH)
-
 def display_chat_message(message, is_user=True):
     """Zeigt eine Chat-Nachricht an"""
     with st.chat_message("user" if is_user else "assistant"):
         st.markdown(message)
 
 def bot_response(user_input):
-    """Verarbeitet die Benutzeranfrage"""
-    agent = ReActAgent(database_path=st.session_state.db_path)
-    result = agent.execute_query(user_input)
-    if result.success and result.data is not None:
-        return f"SQL: {result.sql_query}\n\nErgebnis:\n{result.data.head().to_markdown()}"
-    else:
-        return f"Fehler: {result.error_message}"
+    """Verarbeitet die Benutzeranfrage mit CLT/CFT Agent"""
+    try:
+        # Clear cache to ensure latest version is loaded
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        
+        # Initialize CLT/CFT Agent
+        agent = CLTCFTAgent(database_path=get_absolute_path(DEFAULT_DB_PATH))
+        
+        # Get current user ID from session
+        user_id = st.session_state.username
+        
+        # Execute query (explicitly set include_debug_info=False to get 2-tuple)
+        result = agent.execute_query(user_id, user_input, include_debug_info=False)
+        modified_result, explanation_content = cast(Tuple[QueryResult, Optional[ExplanationContent]], result)
+        
+        # Build response
+        response_parts = []
+        
+        # Add query result
+        if modified_result.success and modified_result.data is not None:
+            response_parts.append(f"**SQL Query:**\n```sql\n{modified_result.sql_query}\n```")
+            response_parts.append(f"**Ergebnis:**\n{modified_result.data.to_markdown()}")
+        else:
+            response_parts.append(f"**Fehler:** {modified_result.error_message}")
+        
+        # Add explanation if provided
+        if explanation_content:
+            response_parts.append("---")
+            response_parts.append("**Erklärung:**")
+            response_parts.append(explanation_content.explanation_text)
+        
+        return "\n\n".join(response_parts)
+        
+    except Exception as e:
+        logger.error(f"Error in bot_response: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"**Fehler bei der Verarbeitung:** {str(e)}"
 
 def login_form():
     """Zeigt das Login-Formular an"""
@@ -115,17 +131,6 @@ def main():
         if st.button("🚪 Abmelden"):
             del st.session_state.username
             st.rerun()
-        
-        st.divider()
-        
-        # Datenbankpfad
-        current_relative_path = get_relative_path(st.session_state.db_path)
-        db_path = st.text_input(
-            "Datenbankpfad (relativ zum Projektroot):",
-            value=current_relative_path
-        )
-        if db_path != current_relative_path:
-            st.session_state.db_path = get_absolute_path(db_path)
         
         st.divider()
         
