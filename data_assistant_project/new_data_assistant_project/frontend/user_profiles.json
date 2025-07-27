@@ -1,0 +1,103 @@
+{
+  "beginner_user": {
+    "user_id": "beginner_user",
+    "sql_expertise_level": 2,
+    "domain_knowledge": 2,
+    "cognitive_load_capacity": 3,
+    "prior_query_history": [
+      {
+        "timestamp": "2025-07-17T11:14:15.094492",
+        "user_query": "SELECT \n    \"Product Name\",\n    ROUND(SUM(Sales), 2) as Total_Sales,\n    ROUND(SUM(Profit), 2) as Total_Profit,\n    SUM(Quantity) as Total_Quantity,\n    ROUND(SUM(Profit) / SUM(Sales) * 100, 2) as Profit_Margin_Percent\nFROM superstore\nGROUP BY \"Product Name\"\nORDER BY Total_Sales DESC\nLIMIT 20;",
+        "sql_complexity": 3,
+        "explanation_provided": true,
+        "explanation_type": "simplified"
+      }
+    ],
+    "learning_preferences": {
+      "explanation_style": "step_by_step"
+    },
+    "last_updated": "2025-07-17T11:14:15.094506"
+  },
+  "expert_user": {
+    "user_id": "expert_user",
+    "sql_expertise_level": 2,
+    "domain_knowledge": 2,
+    "cognitive_load_capacity": 3,
+    "prior_query_history": [
+      {
+        "timestamp": "2025-07-17T11:17:31.586780",
+        "user_query": "SELECT \n    \"Product Name\",\n    SUM(Sales) as Total_Sales\nFROM superstore\nGROUP BY \"Product Name\"\nORDER BY Total_Sales DESC\nLIMIT 3;",
+        "sql_complexity": 3,
+        "explanation_provided": true,
+        "explanation_type": "simplified"
+      },
+      {
+        "timestamp": "2025-07-17T11:29:05.589151",
+        "user_query": "SELECT \n    \"Product Name\",\n    ROUND(SUM(Sales), 2) as Total_Sales,\n    ROUND(SUM(Profit), 2) as Total_Profit,\n    SUM(Quantity) as Total_Quantity,\n    ROUND(SUM(Profit) / SUM(Sales) * 100, 2) as Profit_Margin_Percent,\n    COUNT(*) as Number_of_Orders\nFROM superstore\nGROUP BY \"Product Name\"\nORDER BY Total_Sales DESC\nLIMIT 20;",
+        "sql_complexity": 3,
+        "explanation_provided": true,
+        "explanation_type": "simplified"
+      },
+      {
+        "timestamp": "2025-07-17T11:37:58.187680",
+        "user_query": "SELECT \n    \"Product Name\",\n    ROUND(SUM(Sales), 2) as Total_Sales,\n    ROUND(SUM(Profit), 2) as Total_Profit,\n    SUM(Quantity) as Total_Quantity,\n    ROUND(SUM(Profit) / SUM(Sales) * 100, 2) as Profit_Margin_Percent\nFROM superstore\nGROUP BY \"Product Name\"\nORDER BY Total_Sales DESC\nLIMIT 20;",
+        "sql_complexity": 3,
+        "explanation_provided": true,
+        "explanation_type": "simplified"
+      },
+      {
+        "timestamp": "2025-07-17T11:38:54.816118",
+        "user_query": "SELECT SUM(Quantity) AS total_items_sold\nFROM superstore;",
+        "sql_complexity": 2,
+        "explanation_provided": true,
+        "explanation_type": "basic"
+      },
+      {
+        "timestamp": "2025-07-17T11:40:21.235669",
+        "user_query": "SELECT SUM(Quantity) AS total_items_sold\nFROM superstore;",
+        "sql_complexity": 2,
+        "explanation_provided": true,
+        "explanation_type": "basic"
+      },
+      {
+        "timestamp": "2025-07-17T12:07:15.122511",
+        "user_query": "SELECT \n    \"Product Name\",\n    ROUND(SUM(Sales), 2) as Total_Sales,\n    ROUND(SUM(Profit), 2) as Total_Profit,\n    SUM(Quantity) as Total_Quantity,\n    ROUND(SUM(Profit) / SUM(Sales) * 100, 2) as Profit_Margin_Percent\nFROM superstore\nGROUP BY \"Product Name\"\nORDER BY Total_Sales DESC\nLIMIT 20;",
+        "sql_complexity": 3,
+        "explanation_provided": true,
+        "explanation_type": "simplified"
+      },
+      {
+        "timestamp": "2025-07-17T12:09:32.743450",
+        "user_query": "SELECT SUM(Quantity) AS total_items_sold\nFROM superstore;",
+        "sql_complexity": 2,
+        "explanation_provided": true,
+        "explanation_type": "basic"
+      },
+      {
+        "timestamp": "2025-07-17T12:14:10.548852",
+        "user_query": "SELECT SUM(Quantity) AS total_items_sold\nFROM superstore;",
+        "sql_complexity": 2,
+        "explanation_provided": true,
+        "explanation_type": "basic"
+      },
+      {
+        "timestamp": "2025-07-17T12:20:49.353849",
+        "user_query": "SELECT \n    \"Customer Name\",\n    SUM(Sales) as Total_Sales,\n    SUM(Profit) as Total_Profit,\n    ROUND((SUM(Profit) / SUM(Sales)) * 100, 2) as Profit_Margin_Percent\nFROM superstore\nWHERE Sales > 0\nGROUP BY \"Customer Name\"\nHAVING SUM(Sales) > 0\nORDER BY Profit_Margin_Percent DESC\nLIMIT 20;",
+        "sql_complexity": 5,
+        "explanation_provided": true,
+        "explanation_type": "simplified"
+      },
+      {
+        "timestamp": "2025-07-17T12:22:32.174550",
+        "user_query": "SELECT MAX(Sales) as highest_product_cost\nFROM superstore;",
+        "sql_complexity": 2,
+        "explanation_provided": true,
+        "explanation_type": "conceptual"
+      }
+    ],
+    "learning_preferences": {
+      "explanation_style": "step_by_step"
+    },
+    "last_updated": "2025-07-17T12:22:32.174570"
+  }
+}
