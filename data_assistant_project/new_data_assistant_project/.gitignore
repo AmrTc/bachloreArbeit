@@ -16,4 +16,5 @@ __pycache__/
 .env.*
 
 # System files
-.DS_Store
+.DS_Storesecrets/.env
+*.env
