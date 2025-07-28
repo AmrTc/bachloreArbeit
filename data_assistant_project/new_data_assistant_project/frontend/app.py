@@ -1,196 +1,174 @@
 import os
+import sys
+from pathlib import Path
 import streamlit as st
-import time
-from datetime import datetime
 import logging
-from typing import Tuple, Optional, cast
-from new_data_assistant_project.src.utils.secrets_path_utils import SecretsPathUtils
+
+# AUTO-NAVIGATE TO CORRECT DIRECTORY
+# This ensures the app works regardless of where it's started from
+def ensure_correct_working_directory():
+    """Automatically navigate to the correct working directory."""
+    current_file = Path(__file__).resolve()
+    
+    # We expect to be in: .../new_data_assistant_project/frontend/app.py
+    # So we need to go up one level to new_data_assistant_project
+    expected_project_root = current_file.parent.parent
+    
+    # Check if we're in the right place
+    if expected_project_root.name == 'new_data_assistant_project':
+        # Change to the project root directory
+        os.chdir(expected_project_root)
+        print(f"✅ Auto-navigated to: {expected_project_root}")
+    else:
+        # Try to find new_data_assistant_project in current or parent directories
+        search_path = current_file.parent
+        for _ in range(5):  # Search up to 5 levels up
+            new_project = search_path / 'new_data_assistant_project'
+            if new_project.exists() and (new_project / 'src').exists():
+                os.chdir(new_project)
+                print(f"✅ Found and navigated to: {new_project}")
+                break
+            search_path = search_path.parent
+            if search_path == search_path.parent:  # Reached filesystem root
+                break
+        else:
+            print(f"❌ Warning: Could not find new_data_assistant_project directory")
+            print(f"Current working directory: {os.getcwd()}")
+    
+    # Add current directory to Python path for imports
+    if str(Path.cwd()) not in sys.path:
+        sys.path.insert(0, str(Path.cwd()))
+
+# Execute directory navigation before any other imports
+ensure_correct_working_directory()
+
+# Now import our modules (should work from the correct directory)
+from new_data_assistant_project.src.utils.auth_manager import AuthManager
+from new_data_assistant_project.src.utils.chat_manager import ChatManager
+from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
+from new_data_assistant_project.src.utils.path_utils import get_absolute_path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Clear Streamlit cache to avoid issues with imports
-st.cache_data.clear()
-st.cache_resource.clear()
-
-# Import modules using the installed package (no sys.path manipulation needed)
-from new_data_assistant_project.src.utils.path_utils import get_project_root, get_absolute_path, get_relative_path
-from new_data_assistant_project.src.utils.user_manager import UserManager
-from new_data_assistant_project.src.agents.clt_cft_agent import CLTCFTAgent, QueryResult, ExplanationContent
-
-# Konfiguration der Seite
+# Page configuration
 st.set_page_config(
-    page_title="Data Assistant",
-    page_icon="💬",
+    page_title="Intelligent Explanation System",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Default paths relative to project root
-DEFAULT_DB_PATH = "src/database/superstore.db"
-
-# Initialisierung der Session State
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "user_manager" not in st.session_state:
-    st.session_state.user_manager = UserManager()  # Removed csv_path parameter to use default
-
-def display_chat_message(message, is_user=True):
-    """Zeigt eine Chat-Nachricht an"""
-    with st.chat_message("user" if is_user else "assistant"):
-        st.markdown(message)
-
-def bot_response(user_input):
-    """Verarbeitet die Benutzeranfrage mit CLT/CFT Agent"""
+# Initialize database on startup
+@st.cache_resource
+def initialize_system():
+    """Initialize database and create admin user if needed."""
     try:
-        # Clear cache to ensure latest version is loaded
-        st.cache_data.clear()
-        st.cache_resource.clear()
+        import os
+        import traceback
         
-        # Initialize CLT/CFT Agent
-        agent = CLTCFTAgent(database_path=get_absolute_path(DEFAULT_DB_PATH))
+        # Comprehensive diagnostics
+        cwd = os.getcwd()
+        logger.info(f"🔧 System Initialization Starting...")
+        logger.info(f"📁 Current working directory: {cwd}")
+        logger.info(f"🐍 Python path includes: {sys.path[:3]}...")
         
-        # Get current user ID from session
-        user_id = st.session_state.username
+        # Check project structure
+        required_dirs = ["src", "src/database", "frontend"]
+        missing_dirs = []
         
-        # Execute query (explicitly set include_debug_info=False to get 2-tuple)
-        result = agent.execute_query(user_id, user_input, include_debug_info=False)
-        modified_result, explanation_content = cast(Tuple[QueryResult, Optional[ExplanationContent]], result)
+        for dir_name in required_dirs:
+            if os.path.exists(dir_name):
+                logger.info(f"✅ Found directory: {dir_name}")
+            else:
+                missing_dirs.append(dir_name)
+                logger.error(f"❌ Missing directory: {dir_name}")
         
-        # Build response
-        response_parts = []
+        if missing_dirs:
+            logger.error(f"❌ Missing directories: {missing_dirs}")
+            logger.error(f"Current directory contents: {os.listdir('.')}")
+            return False
         
-        # Add query result
-        if modified_result.success and modified_result.data is not None:
-            response_parts.append(f"**SQL Query:**\n```sql\n{modified_result.sql_query}\n```")
-            response_parts.append(f"**Ergebnis:**\n{modified_result.data.to_markdown()}")
+        # Check database file
+        db_path = "src/database/superstore.db"
+        if os.path.exists(db_path):
+            logger.info(f"✅ Database file exists: {db_path}")
         else:
-            response_parts.append(f"**Fehler:** {modified_result.error_message}")
+            logger.warning(f"⚠️ Database file will be created: {db_path}")
+            
+        # Initialize database
+        create_tables()
+        create_admin_user()
         
-        # Add explanation if provided
-        if explanation_content:
-            response_parts.append("---")
-            response_parts.append("**Erklärung:**")
-            response_parts.append(explanation_content.explanation_text)
-        
-        return "\n\n".join(response_parts)
+        logger.info("🎯 System initialized successfully!")
+        return True
         
     except Exception as e:
-        logger.error(f"Error in bot_response: {e}")
-        import traceback
-        traceback.print_exc()
-        return f"**Fehler bei der Verarbeitung:** {str(e)}"
+        logger.error(f"❌ System initialization error: {e}")
+        logger.error(f"📍 Current working directory: {os.getcwd()}")
+        logger.error(f"📂 Directory contents: {os.listdir('.')}")
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
+        return False
 
-def login_form():
-    """Zeigt das Login-Formular an"""
-    st.header("🔐 Anmeldung")
-    
-    username = st.text_input("Benutzername")
-    password = st.text_input("Passwort", type="password")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("Anmelden"):
-            if st.session_state.user_manager.authenticate_user(username, password):
-                st.session_state.user_manager.update_last_login(username)
-                st.session_state.username = username
-                st.success("Erfolgreich angemeldet!")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("Ungültige Anmeldedaten!")
-    
-    with col2:
-        if st.button("Testnutzer erstellen"):
-            st.session_state.user_manager.create_test_users()
-            st.success("Testnutzer wurden erstellt!")
-            st.info("Verfügbare Testnutzer:\n- beginner_user\n- intermediate_user\n- expert_user\n\nPasswort für alle: test123")
+# Initialize system
+system_ready = initialize_system()
+
+if not system_ready:
+    st.error("❌ System initialization failed. Please check the logs.")
+    st.stop()
+
+# Initialize managers
+auth_manager = AuthManager()
+chat_manager = ChatManager()
 
 def main():
-    """Hauptfunktion der Chat-Seite"""
+    """Main application logic with authentication and role-based routing."""
     
-    # Überprüfe Anmeldung
-    if "username" not in st.session_state:
-        login_form()
+    # Check authentication
+    if not auth_manager.is_authenticated():
+        auth_manager.render_login_page()
         return
     
-    # Sidebar für Benutzereinstellungen
-    with st.sidebar:
-        st.title("⚙️ Einstellungen")
-        
-        # Benutzer-Informationen
-        user_profile = st.session_state.user_manager.get_user_profile(st.session_state.username)
-        st.header(f"👤 {user_profile['username']}")
-        st.write(f"E-Mail: {user_profile['email']}")
-        st.write(f"SQL-Expertise: {user_profile['sql_expertise_level']}/5")
-        st.write(f"Domain-Wissen: {user_profile['domain_knowledge']}/5")
-        
-        if st.button("🚪 Abmelden"):
-            del st.session_state.username
-            st.rerun()
-        
-        st.divider()
-        
-        # Chat-Statistiken
-        st.subheader("📊 Chat-Statistiken")
-        st.metric("Nachrichten", len(st.session_state.messages))
-        
-        if st.session_state.messages:
-            user_msgs = len([m for m in st.session_state.messages if m["is_user"]])
-            bot_msgs = len([m for m in st.session_state.messages if not m["is_user"]])
-            st.metric("Ihre Nachrichten", user_msgs)
-            st.metric("Bot-Antworten", bot_msgs)
-        
-        if st.button("🗑️ Chat löschen"):
-            st.session_state.messages = []
-            st.rerun()
+    # Get current user
+    user = auth_manager.get_current_user()
     
-    # Hauptbereich
-    st.title("💬 Data Assistant")
+    # Render user info in sidebar
+    auth_manager.render_user_info()
     
-    # Chat-Container
-    chat_container = st.container(height=400)
+    # Check if user needs to complete assessment
+    if user.role == 'user' and not user.has_completed_assessment:
+        completed = auth_manager.render_assessment_page()
+        if not completed:
+            return
     
-    with chat_container:
-        for message in st.session_state.messages:
-            display_chat_message(message["content"], message["is_user"])
+    # Role-based navigation and content
+    if user.role == 'admin':
+        render_admin_interface()
+    else:
+        render_user_interface(user)
+
+def render_admin_interface():
+    """Render admin interface with navigation."""
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔧 Admin Navigation")
     
-    # Chat-Eingabe
-    with st.container():
-        user_input = st.text_input(
-            "Ihre Frage:",
-            placeholder="Stellen Sie eine Frage zur Datenbank...",
-            key="user_input"
-        )
-        
-        if st.button("Senden", type="primary"):
-            if user_input.strip():
-                st.session_state.messages.append({
-                    "content": user_input,
-                    "is_user": True,
-                    "timestamp": datetime.now()
-                })
-                bot_reply = bot_response(user_input)
-                st.session_state.messages.append({
-                    "content": bot_reply,
-                    "is_user": False,
-                    "timestamp": datetime.now()
-                })
-                st.rerun()
-    
-    # Footer
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style='text-align: center; color: #666;'>
-        💬 Data Assistant | Entwickelt für Ihre Datenanalyse
-        </div>
-        """,
-        unsafe_allow_html=True
+    page = st.sidebar.radio(
+        "Select Page:",
+        ["🤖 Data Assistant", "📊 Evaluation Dashboard"]
     )
+    
+    if page == "🤖 Data Assistant":
+        user = auth_manager.get_current_user()
+        chat_manager.render_chat_interface(user)
+    else:
+        # Import and render evaluation dashboard
+        from new_data_assistant_project.frontend.pages.evaluation_dashboard import render_evaluation_dashboard
+        render_evaluation_dashboard()
+
+def render_user_interface(user):
+    """Render user interface (chat only)."""
+    chat_manager.render_chat_interface(user)
 
 if __name__ == "__main__":
     main()
