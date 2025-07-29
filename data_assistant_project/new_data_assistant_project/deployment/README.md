@@ -1,236 +1,217 @@
-# 🚀 Deployment Guide - Data Assistant Project
+# Data Assistant - Docker Deployment
 
-## Übersicht
+🐳 **Professionelles Docker-Deployment für permanenten Betrieb und externe Erreichbarkeit**
 
-Dieses Verzeichnis enthält alle notwendigen Dateien und Skripte für die Bereitstellung des Data Assistant Projekts auf einer VM. Sie haben zwei Hauptoptionen:
-
-1. **Direkte Installation** - Installation direkt auf der VM
-2. **Docker Container** - Containerisierte Bereitstellung
-
-## 📁 Dateien in diesem Verzeichnis
-
-| Datei                  | Beschreibung                                              |
-| ---------------------- | --------------------------------------------------------- |
-| `deploy.sh`          | Automatisches Deployment-Skript für direkte Installation |
-| `docker-deploy.sh`   | Docker-Deployment-Skript für Container                   |
-| `Dockerfile`         | Docker-Image-Definition                                   |
-| `docker-compose.yml` | Docker Compose-Konfiguration                              |
-| `VM_SETUP_GUIDE.md`  | Detaillierte Schritt-für-Schritt Anleitung               |
-
-## 🚀 Schnellstart
-
-### Option 1: Direkte Installation (Empfohlen für Entwicklung)
+## 🚀 Quick Start
 
 ```bash
-# 1. Dateien auf VM übertragen
-scp -r new_data_assistant_project/ tchagnaoso@tchagn01.stud.fim.uni-passau.de:/opt/
-
-# 2. Auf VM verbinden
-ssh tchagnaoso@tchagn01.stud.fim.uni-passau.de
-
-# 3. Deployment ausführen
-cd /opt/new_data_assistant_project/deployment
-sudo chmod +x deploy.sh
-./deploy.sh
-```
-
-### Option 2: Docker Container (Empfohlen für Produktion)
-
-```bash
-# 1. Dateien auf VM übertragen
-scp -r new_data_assistant_project/ user@your-vm-ip:/opt/
-
-# 2. Auf VM verbinden
-ssh user@your-vm-ip
-
-# 3. Docker installieren (falls nötig)
-cd /opt/new_data_assistant_project/deployment
+# 1. Docker installieren (falls nötig)
 ./docker-deploy.sh install-docker
 
-# 4. Neu einloggen für Docker-Gruppe
-exit
-ssh user@your-vm-ip
+# 2. Permanentes Deployment mit externer Erreichbarkeit
+./docker-deploy.sh deploy --with-nginx
 
-# 5. Deployment ausführen
-cd /opt/new_data_assistant_project/deployment
-./docker-deploy.sh deploy
+# 3. Status prüfen
+./docker-deploy.sh status
 ```
 
-## 🔧 Erweiterte Deployment-Optionen
+## 📋 Deployment-Optionen
 
-### Docker mit Monitoring
-
+### **Standard (nur App):**
 ```bash
-./docker-deploy.sh deploy --with-monitoring
+./docker-deploy.sh deploy
+# → App läuft auf Port 8501
 ```
 
-Startet zusätzlich Prometheus (Port 9090) und Grafana (Port 3000)
-
-### Docker mit Nginx Reverse Proxy
-
+### **Mit Nginx (empfohlen für externe Erreichbarkeit):**
 ```bash
 ./docker-deploy.sh deploy --with-nginx
+# → App über Port 80 erreichbar
+# → Professionelle Reverse-Proxy Konfiguration
 ```
 
-Startet Nginx als Reverse Proxy auf Port 80
-
-### Beide Optionen kombiniert
-
+### **Mit Monitoring:**
 ```bash
-./docker-deploy.sh deploy --with-monitoring --with-nginx
+./docker-deploy.sh deploy --with-monitoring
+# → Zusätzlich Prometheus (Port 9090) + Grafana (Port 3000)
 ```
 
-## 🛠️ Wartung und Management
-
-### Direkte Installation
-
+### **Vollständiges Setup:**
 ```bash
-# Service-Status prüfen
-sudo systemctl status data-assistant
-
-# Logs anzeigen
-sudo journalctl -u data-assistant -f
-
-# Service neustarten
-sudo systemctl restart data-assistant
-
-# Backup erstellen
-/opt/backups/data_assistant/backup.sh
+./docker-deploy.sh deploy --with-nginx --with-monitoring
+# → Alles: App + Nginx + Monitoring
 ```
 
-### Docker Container
+## 🌐 Externe Erreichbarkeit
 
+### **Option 1: Nginx Reverse Proxy (empfohlen)**
 ```bash
-# Container-Status
+# Deployment mit Nginx
+./docker-deploy.sh deploy --with-nginx
+
+# Zugriff:
+# - Lokal: http://localhost:80
+# - Extern: http://your-server-ip:80
+# - Domain: http://your-domain.com
+```
+
+### **Option 2: SSH-Tunnel (für sichere Verbindungen)**
+```bash
+# Von einem anderen Computer:
+ssh -L 8501:localhost:8501 user@your-server
+# Browser: http://localhost:8501
+
+# Oder mit Nginx:
+ssh -L 8080:localhost:80 user@your-server  
+# Browser: http://localhost:8080
+```
+
+### **Option 3: Firewall-Konfiguration**
+```bash
+# Ports für externe Erreichbarkeit öffnen:
+sudo ufw allow 80/tcp    # HTTP
+sudo ufw allow 443/tcp   # HTTPS (falls SSL)
+sudo ufw allow 8501/tcp  # Direkt zur App
+```
+
+## 🔄 Permanenter Betrieb
+
+### **Docker-Container Management:**
+```bash
+# Status aller Container
 ./docker-deploy.sh status
 
-# Logs anzeigen
+# Live-Logs verfolgen
 ./docker-deploy.sh logs
-
-# Backup erstellen
-./docker-deploy.sh backup
 
 # Container neustarten
 ./docker-deploy.sh restart
 
-# Bereinigung
-./docker-deploy.sh cleanup
-```
-
-## 🌐 Zugriff auf die Anwendung
-
-Nach erfolgreichem Deployment ist die Anwendung erreichbar unter:
-
-- **Direkte Installation**: `http://your-vm-ip:8501`
-- **Docker (ohne Nginx)**: `http://your-vm-ip:8501`
-- **Docker mit Nginx**: `http://your-vm-ip:80`
-
-### Standard-Anmeldedaten
-
-- **Benutzername**: `admin`
-- **Passwort**: `admin123`
-
-⚠️ **Wichtig**: Ändern Sie das Standard-Passwort nach der ersten Anmeldung!
-
-## 🔐 Sicherheit
-
-### API-Schlüssel konfigurieren
-
-1. **Direkte Installation**:
-
-   ```bash
-   nano /opt/data_assistant/new_data_assistant_project/.env
-   ```
-2. **Docker**:
-
-   ```bash
-   nano /opt/new_data_assistant_project/.env
-   ```
-
-Setzen Sie mindestens:
-
-```env
-ANTHROPIC_API_KEY=your_actual_api_key_here
-```
-
-### Firewall-Konfiguration
-
-Die Skripte konfigurieren automatisch die Firewall. Manuelle Überprüfung:
-
-```bash
-sudo ufw status
-```
-
-Offene Ports:
-
-- `22` - SSH
-- `8501` - Streamlit (direkt)
-- `80` - HTTP (Nginx)
-- `443` - HTTPS (Nginx, falls SSL konfiguriert)
-
-## 📊 Monitoring (Optional)
-
-Bei Docker-Deployment mit `--with-monitoring`:
-
-- **Prometheus**: `http://your-vm-ip:9090`
-- **Grafana**: `http://your-vm-ip:3000`
-  - Login: admin/admin
-
-## 🆘 Fehlerbehebung
-
-### Häufige Probleme
-
-1. **Port bereits belegt**:
-
-   ```bash
-   sudo netstat -tulpn | grep 8501
-   sudo kill -9 <process-id>
-   ```
-2. **Docker-Berechtigung**:
-
-   ```bash
-   sudo usermod -aG docker $USER
-   newgrp docker
-   ```
-3. **Speicherplatz**:
-
-   ```bash
-   df -h
-   docker system prune -f
-   ```
-4. **Service startet nicht**:
-
-   ```bash
-   sudo journalctl -u data-assistant --no-pager -n 50
-   ```
-
-### Log-Dateien
-
-- **Direkte Installation**: `/var/log/data_assistant/`
-- **Docker**: `docker-compose logs data-assistant`
-
-## 📞 Support
-
-Für detaillierte Informationen siehe:
-
-- `VM_SETUP_GUIDE.md` - Vollständige Schritt-für-Schritt Anleitung
-- Projekt-Repository - Dokumentation und Issues
-
-## 🔄 Updates
-
-### Direkte Installation
-
-```bash
-cd /opt/data_assistant/new_data_assistant_project
-git pull  # falls Git-Repository
-sudo systemctl restart data-assistant
-```
-
-### Docker
-
-```bash
-cd /opt/new_data_assistant_project/deployment
+# Container stoppen
 ./docker-deploy.sh stop
-docker-compose build --no-cache
+
+# Container starten
 ./docker-deploy.sh start
 ```
+
+### **Automatischer Start nach Server-Neustart:**
+Container starten automatisch durch `restart: unless-stopped` in docker-compose.yml
+
+## 🛠️ Erweiterte Konfiguration
+
+### **Umgebungsvariablen (.env):**
+```bash
+# .env Datei im Hauptverzeichnis bearbeiten:
+ANTHROPIC_API_KEY=your_api_key_here
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_secure_password
+SECRET_KEY=your_secret_key
+SESSION_TIMEOUT=3600
+MAX_LOGIN_ATTEMPTS=3
+```
+
+### **Nginx für Custom Domain:**
+```bash
+# nginx.conf bearbeiten:
+server_name your-domain.com;
+```
+
+### **SSL/HTTPS einrichten:**
+```bash
+# SSL-Zertifikate in ./ssl/ Verzeichnis platzieren
+# Dann nginx.conf HTTPS-Sektion aktivieren
+```
+
+## 🔧 Wartung & Troubleshooting
+
+### **Container-Diagnose:**
+```bash
+# Alle Container anzeigen
+docker ps -a
+
+# Container-Logs
+docker logs data_assistant_app
+docker logs data_assistant_nginx
+
+# In Container hinein (Debugging)
+docker exec -it data_assistant_app bash
+
+# Container-Ressourcen
+docker stats
+```
+
+### **Datenbank-Management:**
+```bash
+# Backup erstellen
+./docker-deploy.sh backup
+
+# Datenbank-Volume prüfen
+docker volume ls
+```
+
+### **Updates:**
+```bash
+# Code-Updates
+git pull origin main
+./docker-deploy.sh restart
+
+# Docker-Image neu bauen
+docker-compose build --no-cache
+./docker-deploy.sh restart
+```
+
+## 📁 Datei-Struktur
+
+```
+deployment/
+├── docker-deploy.sh      # Hauptskript
+├── docker-compose.yml    # Container-Konfiguration
+├── Dockerfile           # Image-Definition
+├── nginx.conf           # Reverse-Proxy Konfiguration
+└── README.md           # Diese Anleitung
+
+Generated at runtime:
+├── data/               # Persistente Daten
+├── logs/              # Container-Logs
+└── ssl/               # SSL-Zertifikate (optional)
+```
+
+## 🎯 Standard-Login
+
+```
+🌐 URL: http://your-server-ip (mit Nginx)
+🌐 URL: http://your-server-ip:8501 (direkt)
+
+👤 Benutzername: admin
+🔑 Passwort: admin123
+```
+
+**⚠️ WICHTIG: Ändern Sie das Admin-Passwort nach dem ersten Login!**
+
+## ⚡ Quick Commands
+
+```bash
+# Komplettes Setup (neue VM):
+./docker-deploy.sh install-docker
+./docker-deploy.sh deploy --with-nginx
+./docker-deploy.sh status
+
+# Tägliche Wartung:
+./docker-deploy.sh logs     # Logs prüfen
+./docker-deploy.sh backup   # Backup erstellen
+
+# Bei Problemen:
+./docker-deploy.sh restart  # Neustart
+./docker-deploy.sh cleanup  # Bereinigung
+```
+
+## 🌍 Zugriff von anderen Systemen
+
+Nach erfolgreichem Deployment ist die App erreichbar unter:
+
+- **Lokal auf dem Server:** `http://localhost` oder `http://localhost:8501`
+- **Andere Computer im Netzwerk:** `http://SERVER_IP` oder `http://SERVER_IP:8501`  
+- **Internet (falls konfiguriert):** `http://your-domain.com`
+- **SSH-Tunnel:** `ssh -L 8080:localhost:80 user@server` → `http://localhost:8080`
+
+🎉 **Das System läuft permanent und ist von überall erreichbar!**
