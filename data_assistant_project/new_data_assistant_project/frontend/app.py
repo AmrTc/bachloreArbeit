@@ -4,10 +4,9 @@ from pathlib import Path
 import streamlit as st
 import logging
 
-# AUTO-NAVIGATE TO CORRECT DIRECTORY
-# This ensures the app works regardless of where it's started from
+# AUTO-NAVIGATE TO CORRECT DIRECTORY & SETUP IMPORTS
 def ensure_correct_working_directory():
-    """Automatically navigate to the correct working directory."""
+    """Automatically navigate to the correct working directory and setup imports."""
     current_file = Path(__file__).resolve()
     
     # We expect to be in: .../new_data_assistant_project/frontend/app.py
@@ -35,27 +34,93 @@ def ensure_correct_working_directory():
             print(f"❌ Warning: Could not find new_data_assistant_project directory")
             print(f"Current working directory: {os.getcwd()}")
     
-    # Add current directory to Python path for imports
-    if str(Path.cwd()) not in sys.path:
-        sys.path.insert(0, str(Path.cwd()))
+    # Setup Python path for imports
+    project_root = Path.cwd()
+    parent_dir = project_root.parent
+    
+    # Add paths to sys.path
+    paths_to_add = [str(project_root), str(parent_dir)]
+    for path in paths_to_add:
+        if path not in sys.path:
+            sys.path.insert(0, path)
+    
+    # Try to import our global setup
+    try:
+        import new_data_assistant_project
+        print("✅ Global import setup loaded successfully")
+    except ImportError:
+        print("⚠️ Could not load global import setup, using fallback")
 
 # Execute directory navigation before any other imports
 ensure_correct_working_directory()
 
-# Now import our modules (using relative imports for Docker compatibility)
-try:
-    # Try absolute imports first (for local development)
-    from new_data_assistant_project.src.utils.auth_manager import AuthManager
-    from new_data_assistant_project.src.utils.chat_manager import ChatManager
-    from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
-    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
-except ImportError:
-    # Fallback to relative imports (for Docker/production)
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from src.utils.auth_manager import AuthManager
-    from src.utils.chat_manager import ChatManager
-    from src.database.schema import create_tables, create_admin_user
-    from src.utils.path_utils import get_absolute_path
+# Robust import function with multiple fallback strategies
+def robust_import():
+    """Import required modules with multiple fallback strategies."""
+    
+    # Strategy 1: Try global import setup
+    try:
+        import new_data_assistant_project
+        from new_data_assistant_project.src.utils.auth_manager import AuthManager
+        from new_data_assistant_project.src.utils.chat_manager import ChatManager
+        from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
+        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+        print("✅ Strategy 1: Global imports successful")
+        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+    except ImportError as e:
+        print(f"❌ Strategy 1 failed: {e}")
+    
+    # Strategy 2: Try absolute imports with current working directory
+    try:
+        from new_data_assistant_project.src.utils.auth_manager import AuthManager
+        from new_data_assistant_project.src.utils.chat_manager import ChatManager
+        from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
+        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+        print("✅ Strategy 2: Absolute imports successful")
+        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+    except ImportError as e:
+        print(f"❌ Strategy 2 failed: {e}")
+    
+    # Strategy 3: Try relative imports (Docker fallback)
+    try:
+        from src.utils.auth_manager import AuthManager
+        from src.utils.chat_manager import ChatManager
+        from src.database.schema import create_tables, create_admin_user
+        from src.utils.path_utils import get_absolute_path
+        print("✅ Strategy 3: Relative imports successful")
+        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+    except ImportError as e:
+        print(f"❌ Strategy 3 failed: {e}")
+    
+    # Strategy 4: Manual path manipulation
+    try:
+        # Add specific paths
+        current_dir = Path.cwd()
+        sys.path.insert(0, str(current_dir))
+        sys.path.insert(0, str(current_dir / 'src'))
+        
+        from utils.auth_manager import AuthManager
+        from utils.chat_manager import ChatManager
+        from database.schema import create_tables, create_admin_user
+        from utils.path_utils import get_absolute_path
+        print("✅ Strategy 4: Manual path imports successful")
+        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+    except ImportError as e:
+        print(f"❌ Strategy 4 failed: {e}")
+    
+    return False, None
+
+# Import required modules
+import_success, modules = robust_import()
+
+if not import_success:
+    st.error("❌ Critical Error: Could not import required modules. Please check the installation.")
+    st.error(f"Current working directory: {os.getcwd()}")
+    st.error(f"Python path: {sys.path[:3]}...")
+    st.stop()
+
+# Unpack modules
+AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path = modules
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -171,8 +236,15 @@ def render_admin_interface():
         user = auth_manager.get_current_user()
         chat_manager.render_chat_interface(user)
     else:
-        # Import and render evaluation dashboard
-        from new_data_assistant_project.frontend.pages.evaluation_dashboard import render_evaluation_dashboard
+        # Import evaluation dashboard with same robust strategy
+        try:
+            from new_data_assistant_project.frontend.pages.evaluation_dashboard import render_evaluation_dashboard
+        except ImportError:
+            try:
+                from frontend.pages.evaluation_dashboard import render_evaluation_dashboard
+            except ImportError:
+                from pages.evaluation_dashboard import render_evaluation_dashboard
+        
         render_evaluation_dashboard()
 
 def render_user_interface(user):
