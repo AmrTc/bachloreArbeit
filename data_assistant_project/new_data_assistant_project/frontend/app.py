@@ -42,11 +42,20 @@ def ensure_correct_working_directory():
 # Execute directory navigation before any other imports
 ensure_correct_working_directory()
 
-# Now import our modules (should work from the correct directory)
-from new_data_assistant_project.src.utils.auth_manager import AuthManager
-from new_data_assistant_project.src.utils.chat_manager import ChatManager
-from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
-from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+# Now import our modules (using relative imports for Docker compatibility)
+try:
+    # Try absolute imports first (for local development)
+    from new_data_assistant_project.src.utils.auth_manager import AuthManager
+    from new_data_assistant_project.src.utils.chat_manager import ChatManager
+    from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
+    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+except ImportError:
+    # Fallback to relative imports (for Docker/production)
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from src.utils.auth_manager import AuthManager
+    from src.utils.chat_manager import ChatManager
+    from src.database.schema import create_tables, create_admin_user
+    from src.utils.path_utils import get_absolute_path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

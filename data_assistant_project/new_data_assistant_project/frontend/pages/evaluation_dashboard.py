@@ -4,9 +4,21 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import logging
-from new_data_assistant_project.src.database.models import ExplanationFeedback, User, ChatSession
-from new_data_assistant_project.src.utils.path_utils import get_absolute_path
-from new_data_assistant_project.src.utils.auth_manager import AuthManager
+import sys
+from pathlib import Path
+
+# Import with fallback for Docker compatibility
+try:
+    # Try absolute imports first (for local development)
+    from new_data_assistant_project.src.database.models import ExplanationFeedback, User, ChatSession
+    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+    from new_data_assistant_project.src.utils.auth_manager import AuthManager
+except ImportError:
+    # Fallback to relative imports (for Docker/production)
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from src.database.models import ExplanationFeedback, User, ChatSession
+    from src.utils.path_utils import get_absolute_path
+    from src.utils.auth_manager import AuthManager
 
 logger = logging.getLogger(__name__)
 
