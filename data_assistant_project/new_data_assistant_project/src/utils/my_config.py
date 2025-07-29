@@ -1,10 +1,16 @@
+"""
+Configuration utilities for the Data Assistant project.
+"""
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Import modules using the installed package
-
-from new_data_assistant_project.src.utils.secrets_path_utils import SecretsPathUtils
+# Docker-compatible imports
+try:
+    from new_data_assistant_project.src.utils.secrets_path_utils import SecretsPathUtils
+except ImportError:
+    from src.utils.secrets_path_utils import SecretsPathUtils
 
 class MyConfig:
     """Configuration manager for the data assistant project."""

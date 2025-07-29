@@ -4,8 +4,18 @@ Script to create test users for the Intelligent Explanation System.
 """
 
 import logging
-from new_data_assistant_project.src.database.models import User
-from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+import random
+from typing import Dict, Any, List
+import uuid
+from datetime import datetime
+
+# Docker-compatible imports
+try:
+    from new_data_assistant_project.src.database.models import User
+    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+except ImportError:
+    from src.database.models import User
+    from src.utils.path_utils import get_absolute_path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

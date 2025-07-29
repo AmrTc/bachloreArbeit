@@ -9,9 +9,13 @@ import re
 import os
 from pathlib import Path
 
-# Import modules using the installed package
-from new_data_assistant_project.src.utils.my_config import MyConfig
-from new_data_assistant_project.src.agents.ReAct_agent import QueryResult, ReActAgent
+# Docker-compatible imports
+try:
+    from new_data_assistant_project.src.utils.my_config import MyConfig
+    from new_data_assistant_project.src.agents.ReAct_agent import QueryResult, ReActAgent
+except ImportError:
+    from src.utils.my_config import MyConfig
+    from src.agents.ReAct_agent import QueryResult, ReActAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -515,7 +519,12 @@ class CLTCFTAgent:
     def _create_user_profile_from_csv(self, user_id: str) -> UserProfile:
         """Create user profile from CSV data using UserManager."""
         try:
-            from new_data_assistant_project.src.utils.user_manager import UserManager
+            # Docker-compatible imports
+            try:
+                from new_data_assistant_project.src.utils.user_manager import UserManager
+            except ImportError:
+                from src.utils.user_manager import UserManager
+            
             user_manager = UserManager()
             csv_data = user_manager.get_user_profile(user_id)
             

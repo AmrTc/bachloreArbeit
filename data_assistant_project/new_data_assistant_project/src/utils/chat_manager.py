@@ -1,10 +1,17 @@
 import streamlit as st
-from typing import List, Optional, Dict, Tuple
+from typing import Optional, List, Dict, Any
 import logging
 from datetime import datetime
-from new_data_assistant_project.src.database.models import ChatSession, ExplanationFeedback, User
-from new_data_assistant_project.src.agents.clt_cft_agent import CLTCFTAgent
-from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+
+# Docker-compatible imports
+try:
+    from new_data_assistant_project.src.database.models import ChatSession, ExplanationFeedback, User
+    from new_data_assistant_project.src.agents.clt_cft_agent import CLTCFTAgent
+    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+except ImportError:
+    from src.database.models import ChatSession, ExplanationFeedback, User
+    from src.agents.clt_cft_agent import CLTCFTAgent
+    from src.utils.path_utils import get_absolute_path
 
 logger = logging.getLogger(__name__)
 

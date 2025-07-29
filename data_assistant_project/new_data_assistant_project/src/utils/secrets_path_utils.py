@@ -1,9 +1,15 @@
+"""
+Secrets path utilities for the Data Assistant project.
+"""
+
 import os
 from pathlib import Path
 
-# Import modules using the installed package
-
-from new_data_assistant_project.src.utils.path_utils import get_project_root, get_absolute_path, get_relative_path
+# Docker-compatible imports
+try:
+    from new_data_assistant_project.src.utils.path_utils import get_project_root, get_absolute_path, get_relative_path
+except ImportError:
+    from src.utils.path_utils import get_project_root, get_absolute_path, get_relative_path
 
 class SecretsPathUtils:
     """Utility class for managing paths to secret files and configurations."""

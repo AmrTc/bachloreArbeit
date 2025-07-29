@@ -2,8 +2,14 @@ import streamlit as st
 from typing import Optional, Dict, Tuple
 import logging
 from datetime import datetime
-from new_data_assistant_project.src.database.models import User
-from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+
+# Docker-compatible imports
+try:
+    from new_data_assistant_project.src.database.models import User
+    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+except ImportError:
+    from src.database.models import User
+    from src.utils.path_utils import get_absolute_path
 
 logger = logging.getLogger(__name__)
 
