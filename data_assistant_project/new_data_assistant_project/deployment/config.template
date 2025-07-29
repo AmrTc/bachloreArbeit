@@ -1,0 +1,29 @@
+# Data Assistant Environment Configuration
+# Copy this file to .env and fill in your values
+
+# === API Keys ===
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# === Application Settings ===
+STREAMLIT_SERVER_PORT=8501
+STREAMLIT_SERVER_ADDRESS=0.0.0.0
+PYTHONPATH=/app
+
+# === Security Settings ===
+SECRET_KEY=your_secret_key_here
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_admin_password_here
+
+# === Database Settings ===
+DATABASE_PATH=/app/src/database/superstore.db
+
+# === Logging ===
+LOG_LEVEL=INFO
+LOG_FILE=/app/logs/app.log
+
+# === User Management ===
+USER_CSV_PATH=/app/data/user_profiles/users.csv
+
+# === Optional: External Services ===
+# REDIS_URL=redis://localhost:6379
+# POSTGRES_URL=postgresql://user:pass@localhost:5432/db 
