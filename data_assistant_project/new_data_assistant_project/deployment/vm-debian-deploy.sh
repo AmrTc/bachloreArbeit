@@ -109,8 +109,6 @@ fi
 # Umgebungsvariablen konfigurieren
 log "⚙️ Umgebung konfigurieren..."
 cat > .env << EOF
-# API Konfiguration
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 # Database Konfiguration
 DATABASE_URL=sqlite:///src/database/superstore.db
