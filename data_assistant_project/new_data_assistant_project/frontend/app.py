@@ -58,36 +58,36 @@ ensure_correct_working_directory()
 def robust_import():
     """Import required modules with multiple fallback strategies."""
     
-    # Strategy 1: Try global import setup
+    # Strategy 1: Try absolute imports (for local development)
+    try:
+        from new_data_assistant_project.src.utils.auth_manager import AuthManager
+        from new_data_assistant_project.src.utils.chat_manager import ChatManager
+        from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
+        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+        print("✅ Strategy 1: Absolute imports successful")
+        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+    except ImportError as e:
+        print(f"❌ Strategy 1 failed: {e}")
+    
+    # Strategy 2: Try direct imports (Docker/production - new structure)
+    try:
+        from src.utils.auth_manager import AuthManager
+        from src.utils.chat_manager import ChatManager
+        from src.database.schema import create_tables, create_admin_user
+        from src.utils.path_utils import get_absolute_path
+        print("✅ Strategy 2: Direct imports successful")
+        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+    except ImportError as e:
+        print(f"❌ Strategy 2 failed: {e}")
+    
+    # Strategy 3: Try with global import setup
     try:
         import new_data_assistant_project
         from new_data_assistant_project.src.utils.auth_manager import AuthManager
         from new_data_assistant_project.src.utils.chat_manager import ChatManager
         from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
         from new_data_assistant_project.src.utils.path_utils import get_absolute_path
-        print("✅ Strategy 1: Global imports successful")
-        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
-    except ImportError as e:
-        print(f"❌ Strategy 1 failed: {e}")
-    
-    # Strategy 2: Try absolute imports with current working directory
-    try:
-        from new_data_assistant_project.src.utils.auth_manager import AuthManager
-        from new_data_assistant_project.src.utils.chat_manager import ChatManager
-        from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
-        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
-        print("✅ Strategy 2: Absolute imports successful")
-        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
-    except ImportError as e:
-        print(f"❌ Strategy 2 failed: {e}")
-    
-    # Strategy 3: Try relative imports (Docker fallback)
-    try:
-        from src.utils.auth_manager import AuthManager
-        from src.utils.chat_manager import ChatManager
-        from src.database.schema import create_tables, create_admin_user
-        from src.utils.path_utils import get_absolute_path
-        print("✅ Strategy 3: Relative imports successful")
+        print("✅ Strategy 3: Global imports successful")
         return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
     except ImportError as e:
         print(f"❌ Strategy 3 failed: {e}")
@@ -243,7 +243,11 @@ def render_admin_interface():
             try:
                 from frontend.pages.evaluation_dashboard import render_evaluation_dashboard
             except ImportError:
-                from pages.evaluation_dashboard import render_evaluation_dashboard
+                try:
+                    from pages.evaluation_dashboard import render_evaluation_dashboard
+                except ImportError:
+                    st.error("❌ Could not import evaluation dashboard")
+                    return
         
         render_evaluation_dashboard()
 

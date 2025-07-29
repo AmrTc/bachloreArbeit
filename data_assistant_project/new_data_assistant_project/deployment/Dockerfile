@@ -39,10 +39,10 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Anwendung kopieren
-COPY . .
+COPY .. .
 
 # Setup-Script erstellen für PYTHONPATH
-RUN echo '#!/bin/bash\nexport PYTHONPATH=/app:/app/new_data_assistant_project:$PYTHONPATH\ncd /app\nexec "$@"' > /app/entrypoint.sh && \
+RUN echo '#!/bin/bash\nexport PYTHONPATH=/app:$PYTHONPATH\ncd /app\nexec "$@"' > /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
 # Streamlit Konfiguration
@@ -58,7 +58,7 @@ RUN chown -R appuser:appuser /app /home/appuser && \
 USER appuser
 
 # Umgebungsvariablen
-ENV PYTHONPATH=/app:/app/new_data_assistant_project
+ENV PYTHONPATH=/app
 ENV STREAMLIT_SERVER_PORT=8501
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV HOME=/home/appuser

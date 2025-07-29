@@ -11,7 +11,7 @@ from pathlib import Path
 def robust_import_modules():
     """Import required modules with multiple fallback strategies."""
     
-    # Strategy 1: Try absolute imports
+    # Strategy 1: Try absolute imports (local development)
     try:
         from new_data_assistant_project.src.database.models import ExplanationFeedback, User, ChatSession
         from new_data_assistant_project.src.utils.path_utils import get_absolute_path
@@ -21,7 +21,17 @@ def robust_import_modules():
     except ImportError as e:
         print(f"❌ Absolute imports failed: {e}")
     
-    # Strategy 2: Try relative imports (Docker)
+    # Strategy 2: Try direct imports (Docker/production - new structure)
+    try:
+        from src.database.models import ExplanationFeedback, User, ChatSession
+        from src.utils.path_utils import get_absolute_path
+        from src.utils.auth_manager import AuthManager
+        print("✅ Evaluation Dashboard: Direct imports successful")
+        return ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager
+    except ImportError as e:
+        print(f"❌ Direct imports failed: {e}")
+    
+    # Strategy 3: Try relative imports (fallback)
     try:
         from src.database.models import ExplanationFeedback, User, ChatSession
         from src.utils.path_utils import get_absolute_path
@@ -31,7 +41,7 @@ def robust_import_modules():
     except ImportError as e:
         print(f"❌ Relative imports failed: {e}")
     
-    # Strategy 3: Manual path manipulation
+    # Strategy 4: Manual path manipulation
     try:
         current_dir = Path.cwd()
         sys.path.insert(0, str(current_dir))
