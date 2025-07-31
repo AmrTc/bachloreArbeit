@@ -221,19 +221,7 @@ class AuthManager:
                 ]
             )
             
-            st.subheader("2. Domain Knowledge")
-            domain_knowledge = st.selectbox(
-                "How familiar are you with business data analysis?",
-                [
-                    "1 - No experience with business data",
-                    "2 - Basic understanding of business metrics",
-                    "3 - Good understanding of business analysis",
-                    "4 - Strong business analytics background",
-                    "5 - Expert in business intelligence and analytics"
-                ]
-            )
-            
-            st.subheader("3. Additional Information")
+            st.subheader("2. Additional Information")
             background = st.text_area(
                 "Tell us about your professional background (optional):",
                 placeholder="e.g., Data Analyst, Software Developer, Business Analyst, Student..."
@@ -244,10 +232,9 @@ class AuthManager:
             if submit_assessment:
                 # Extract numeric values
                 sql_level = int(sql_experience.split(' - ')[0])
-                domain_level = int(domain_knowledge.split(' - ')[0])
                 
                 # Complete assessment
-                user.complete_assessment(self.db_path, sql_level, domain_level)
+                user.complete_assessment(self.db_path, sql_level)
                 
                 st.success("Assessment completed! Redirecting to the Data Assistant...")
                 st.balloons()
@@ -269,7 +256,6 @@ class AuthManager:
                 
                 if user.has_completed_assessment:
                     st.markdown(f"SQL Level: {user.sql_expertise_level}/5")
-                    st.markdown(f"Domain Knowledge: {user.domain_knowledge}/5")
                 
                 if st.button("🚪 Logout"):
                     self.logout() 

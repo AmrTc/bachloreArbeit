@@ -26,7 +26,6 @@ class UserProfile:
     """User cognitive profile based on CLT assessments"""
     user_id: str
     sql_expertise_level: int  # 1-5 scale (novice to expert) - kept for backward compatibility
-    domain_knowledge: int  # 1-5 scale (domain expertise) - for CSV compatibility
     cognitive_load_capacity: int  # 1-5 scale (working memory capacity)
     sql_concept_levels: Dict[str, int]  # New: SQL concept-based levels
     prior_query_history: List[Dict]
@@ -58,7 +57,7 @@ class CLTCFTAgent:
     Determines when users need explanations based on cognitive assessment.
     """
     
-    def __init__(self, user_profiles_path: str = "user_profiles.json", database_path: str = "new_data_assistant_project/src/database/superstore.db"):
+    def __init__(self, user_profiles_path: str = "user_profiles.json", database_path: str = "src/database/superstore.db"):
         """
         Initialize CLT & CFT Agent with Claude Sonnet 4 API and ReAct Agent.
         
@@ -92,19 +91,9 @@ class CLTCFTAgent:
         # Load existing user profiles
         self._load_user_profiles()
         
-        # CLT principles and thresholds
-        self.clt_thresholds = {
-            "working_memory_limit": 4,  # 3-4 items as per narrow limits principle
-            "high_element_interactivity": 3,
-            "expertise_effect_threshold": 3
-        }
+
         
-        # CFT evaluation criteria
-        self.cft_criteria = {
-            "spatial_tasks": ["visualization", "chart", "graph", "plot"],
-            "symbolic_tasks": ["calculation", "aggregate", "sum", "count", "average"],
-            "temporal_tasks": ["trend", "time", "period", "date", "month", "year"]
-        }
+
         
         # SQL concept complexity hierarchy for task classification
         self.sql_complexity_hierarchy = {
@@ -146,74 +135,7 @@ class CLTCFTAgent:
         except Exception as e:
             logger.error(f"Error saving user profiles: {e}")
     
-    def _assess_intrinsic_cognitive_load(self, query_complexity: int, sql_query: str, user_profile: UserProfile) -> int:
-        """
-        Assess intrinsic cognitive load based on CLT principles.
-        
-        Args:
-            query_complexity: Complexity score from ReAct Agent (1-5)
-            sql_query: The SQL query to analyze
-            user_profile: User's cognitive profile
-            
-        Returns:
-            Intrinsic load score (1-5)
-        """
-        # Base intrinsic load from query complexity
-        base_load = query_complexity
-        
-        # Adjust based on user expertise (expertise reversal effect)
-        expertise_adjustment = max(0, 3 - user_profile.sql_expertise_level)
-        
-        # Element interactivity assessment
-        sql_upper = sql_query.upper()
-        interactive_elements = 0
-        
-        # Count simultaneous elements that must be processed
-        if 'JOIN' in sql_upper:
-            interactive_elements += sql_upper.count('JOIN') * 2  # Each join adds multiple elements
-        if 'GROUP BY' in sql_upper and 'HAVING' in sql_upper:
-            interactive_elements += 2  # Grouping and filtering interaction
-        if 'SUBQUERY' in sql_upper or '(' in sql_query:
-            interactive_elements += 3  # Nested structure complexity
-        
-        # Apply narrow limits principle (3-4 items limit)
-        if interactive_elements > self.clt_thresholds["working_memory_limit"]:
-            element_load = min(2, interactive_elements - self.clt_thresholds["working_memory_limit"])
-        else:
-            element_load = 0
-        
-        intrinsic_load = min(5, base_load + expertise_adjustment + element_load)
-        return max(1, intrinsic_load)
-    
-    def _determine_explanation_need(self, assessment: CognitiveAssessment, user_profile: UserProfile) -> Tuple[bool, str]:
-        """
-        Simplified explanation decision: only intrinsic load vs cognitive capacity.
-        
-        Args:
-            assessment: Cognitive assessment results
-            user_profile: User's cognitive profile
-            
-        Returns:
-            Tuple of (explanation_needed, explanation_type)
-        """
-        # Simple decision: intrinsic load vs cognitive capacity
-        if assessment.intrinsic_load > user_profile.cognitive_load_capacity:
-            explanation_needed = True
-            
-            # Determine explanation type based on user's concept level for this task
-            concept_level = user_profile.sql_concept_levels.get(assessment.task_sql_concept, 1)
-            
-            if concept_level <= 2:
-                explanation_type = "basic"
-            elif concept_level == 3:
-                explanation_type = "intermediate"
-            else:
-                explanation_type = "advanced"
-        else:
-            explanation_needed = False
-            explanation_type = "none"
-        
-        return explanation_needed, explanation_type
+
     
     def _classify_sql_task(self, sql_query: str) -> str:
         """
@@ -250,16 +172,16 @@ class CLTCFTAgent:
         # Default to basic select
         return "basic_select"
     
-    def _simplified_cognitive_assessment(self, user_id: str, react_result: QueryResult) -> CognitiveAssessment:
+    def _llm_based_cognitive_assessment(self, user_id: str, react_result: QueryResult) -> CognitiveAssessment:
         """
-        Ultra-simplified cognitive assessment: Use ReAct complexity score directly.
+        LLM-based cognitive assessment: Let the LLM decide if explanation is needed.
         
         Args:
             user_id: User identifier
             react_result: Result from ReAct Agent
             
         Returns:
-            Simplified cognitive assessment
+            Cognitive assessment based on LLM decision
         """
         # Get user profile
         if user_id not in self.user_profiles:
@@ -267,34 +189,25 @@ class CLTCFTAgent:
         
         user_profile = self.user_profiles[user_id]
         
-        # Use RAW complexity score from ReAct Agent - no artificial adjustments!
-        intrinsic_load = react_result.complexity_score  # Direct 1:1 mapping
+        # Use complexity score from ReAct Agent
+        intrinsic_load = react_result.complexity_score
         
         # Classify the SQL task
         task_concept = self._classify_sql_task(react_result.sql_query)
         
-        # Simple decision: intrinsic load vs cognitive capacity
-        if intrinsic_load >= user_profile.cognitive_load_capacity:
-            # User cognitive capacity exceeded
-            explanation_needed = True
-            # Determine explanation type based on user's concept level
-            user_concept_level = user_profile.sql_concept_levels.get(task_concept, 1)  # Default to level 1
-            
-            if user_concept_level <= 2:
-                explanation_type = "basic"
-            elif user_concept_level == 3:
-                explanation_type = "intermediate"
-            else:
-                explanation_type = "advanced"
-            
-            reasoning = f"Task complexity ({intrinsic_load}) >= User capacity ({user_profile.cognitive_load_capacity}) - {explanation_type} explanation needed"
-        else:
-            # User can handle the cognitive load
-            explanation_needed = False
-            explanation_type = "none"
-            reasoning = f"Task complexity ({intrinsic_load}) < User capacity ({user_profile.cognitive_load_capacity}) - no explanation needed"
+        # Use LLM to decide if explanation is needed
+        explanation_decision = self._ask_llm_for_explanation_decision(
+            user_sql_expertise=user_profile.sql_expertise_level,
+            task_complexity=intrinsic_load,
+            task_concept=task_concept,
+            sql_query=react_result.sql_query
+        )
         
-        logger.info(f"Assessment: Task={task_concept}, Load={intrinsic_load}, Capacity={user_profile.cognitive_load_capacity}, Explanation={explanation_needed}")
+        explanation_needed = explanation_decision["explanation_needed"]
+        explanation_type = explanation_decision["explanation_type"] if explanation_needed else "none"
+        reasoning = explanation_decision["reasoning"]
+        
+        logger.info(f"LLM Assessment: Task={task_concept}, Load={intrinsic_load}, User Level={user_profile.sql_expertise_level}, Explanation={explanation_needed}")
         
         return CognitiveAssessment(
             intrinsic_load=intrinsic_load,
@@ -304,9 +217,128 @@ class CLTCFTAgent:
             reasoning=reasoning
         )
     
+    def _ask_llm_for_explanation_decision(self, user_sql_expertise: int, task_complexity: int, 
+                                         task_concept: str, sql_query: str) -> Dict[str, Any]:
+        """
+        Ask LLM to decide if explanation is needed based on user expertise and task complexity.
+        
+        Args:
+            user_sql_expertise: User's SQL expertise level (1-5)
+            task_complexity: Task complexity score (1-5)
+            task_concept: SQL concept category
+            sql_query: The actual SQL query
+            
+        Returns:
+            Dictionary with explanation_needed, explanation_type, and reasoning
+        """
+        system_prompt = """You are an expert educational assessment system for SQL learning. Your job is to decide whether a user needs an explanation for a SQL query based on their expertise level and the task complexity.
+
+EXPERTISE LEVELS:
+- Level 1: Complete beginner (never used SQL)
+- Level 2: Novice (basic SELECT statements)
+- Level 3: Intermediate (JOINs, GROUP BY, subqueries)
+- Level 4: Advanced (window functions, CTEs, optimization)
+- Level 5: Expert (database design, complex analytics)
+
+EXPLANATION TYPES:
+- "basic": Simple, step-by-step explanation for beginners
+- "intermediate": Moderate detail for those with some experience
+- "advanced": Focused on complex concepts and optimization
+- "none": No explanation needed
+
+DECISION CRITERIA:
+- Consider if the task complexity significantly exceeds the user's expertise level
+- Users typically need explanations when encountering concepts 1-2 levels above their expertise
+- Very experienced users (level 4-5) rarely need explanations unless encountering very advanced concepts
+- Consider the specific SQL concept involved and whether it's new to the user's level
+
+Respond in this JSON format:
+{
+  "explanation_needed": true/false,
+  "explanation_type": "basic/intermediate/advanced/none",
+  "reasoning": "Brief explanation of your decision"
+}"""
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1000,
+                temperature=0.1,  # Low temperature for consistent decisions
+                system=system_prompt,
+                messages=[{
+                    "role": "user",
+                    "content": f"""
+User SQL Expertise Level: {user_sql_expertise}/5
+Task Complexity Score: {task_complexity}/5
+SQL Concept Category: {task_concept}
+
+SQL Query to Assess:
+{sql_query}
+
+Should this user receive an explanation for this query? What type of explanation would be most appropriate?
+"""
+                }]
+            )
+            
+            content = ""
+            for block in response.content:
+                content += str(block)
+            
+            # Parse the JSON response
+            import json
+            try:
+                decision = json.loads(content.strip())
+                
+                # Validate response structure
+                if all(key in decision for key in ["explanation_needed", "explanation_type", "reasoning"]):
+                    return decision
+                else:
+                    logger.warning(f"Invalid LLM response structure: {decision}")
+                    return self._fallback_decision(user_sql_expertise, task_complexity)
+                    
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse LLM response as JSON: {content}, Error: {e}")
+                return self._fallback_decision(user_sql_expertise, task_complexity)
+                
+        except Exception as e:
+            logger.error(f"Error calling LLM for explanation decision: {e}")
+            return self._fallback_decision(user_sql_expertise, task_complexity)
+    
+    def _fallback_decision(self, user_sql_expertise: int, task_complexity: int) -> Dict[str, Any]:
+        """
+        Fallback decision logic when LLM is unavailable.
+        
+        Args:
+            user_sql_expertise: User's SQL expertise level (1-5)
+            task_complexity: Task complexity score (1-5)
+            
+        Returns:
+            Dictionary with explanation_needed, explanation_type, and reasoning
+        """
+        # Simple fallback: explanation needed if complexity exceeds expertise
+        if task_complexity > user_sql_expertise:
+            explanation_needed = True
+            if user_sql_expertise <= 2:
+                explanation_type = "basic"
+            elif user_sql_expertise == 3:
+                explanation_type = "intermediate"
+            else:
+                explanation_type = "advanced"
+            reasoning = f"Fallback: Task complexity ({task_complexity}) > User expertise ({user_sql_expertise})"
+        else:
+            explanation_needed = False
+            explanation_type = "none"
+            reasoning = f"Fallback: User can handle task complexity ({task_complexity}) with expertise level ({user_sql_expertise})"
+        
+        return {
+            "explanation_needed": explanation_needed,
+            "explanation_type": explanation_type,
+            "reasoning": reasoning
+        }
+
     def process_react_output(self, user_id: str, react_result: QueryResult, presentation_context: Optional[Dict[str, Any]] = None) -> CognitiveAssessment:
         """
-        Simplified version: Process ReAct output with simplified cognitive assessment.
+        Process ReAct output with LLM-based cognitive assessment.
         """
         if not react_result.success:
             return CognitiveAssessment(
@@ -317,14 +349,14 @@ class CLTCFTAgent:
                 reasoning=f"Query execution failed: {react_result.error_message}"
             )
         
-        return self._simplified_cognitive_assessment(user_id, react_result)
+        return self._llm_based_cognitive_assessment(user_id, react_result)
     
     def _modify_explanation_need_based_on_expertise(self, cognitive_assessment: CognitiveAssessment, 
                                                   user_profile: UserProfile) -> CognitiveAssessment:
         """
-        Simplified version: Only modify based on intrinsic load vs cognitive capacity.
+        No longer needed: LLM-based assessment already considers all relevant factors.
         """
-        # The assessment is already correct from _simplified_cognitive_assessment
+        # The assessment is already complete from LLM-based cognitive assessment
         return cognitive_assessment
     
     def _simplify_sql_for_display(self, sql_query: str) -> str:
@@ -536,7 +568,6 @@ class CLTCFTAgent:
                 return UserProfile(
                     user_id=user_id,
                     sql_expertise_level=csv_data['sql_expertise_level'],
-                    domain_knowledge=csv_data['domain_knowledge'],
                     cognitive_load_capacity=cognitive_capacity,
                     sql_concept_levels={
                         "basic_select": min(csv_data['sql_expertise_level'], 3),
@@ -563,7 +594,6 @@ class CLTCFTAgent:
         return UserProfile(
             user_id=user_id,
             sql_expertise_level=2,  # Assume beginner-intermediate
-            domain_knowledge=2,  # Assume beginner-intermediate domain knowledge
             cognitive_load_capacity=2,  # Reduced to trigger more explanations
             sql_concept_levels={
                 "basic_select": 2,

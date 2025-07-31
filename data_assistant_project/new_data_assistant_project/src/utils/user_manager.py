@@ -11,7 +11,7 @@ class UserManager:
     # Define constant for CSV headers
     CSV_HEADERS = [
         'username', 'password_hash', 'email',
-        'sql_expertise_level', 'domain_knowledge',
+        'sql_expertise_level',
         'last_login'
     ]
     
@@ -72,7 +72,7 @@ class UserManager:
         return hashlib.sha256(password.encode()).hexdigest()
     
     def create_user(self, username: str, password: str, email: str,
-                   sql_expertise_level: int = 1, domain_knowledge: int = 1) -> bool:
+                   sql_expertise_level: int = 1) -> bool:
         """
         Create a new user.
         
@@ -81,7 +81,6 @@ class UserManager:
             password: Plain text password to hash
             email: User's email
             sql_expertise_level: SQL expertise (1-5)
-            domain_knowledge: Domain knowledge (1-5)
             
         Returns:
             bool: True if user was created, False if username exists
@@ -96,7 +95,6 @@ class UserManager:
                 self._hash_password(password),
                 email,
                 sql_expertise_level,
-                domain_knowledge,
                 datetime.now().isoformat()
             ])
         return True
@@ -140,7 +138,6 @@ class UserManager:
                         'password_hash': row['password_hash'],
                         'email': row['email'],
                         'sql_expertise_level': int(row['sql_expertise_level']),
-                        'domain_knowledge': int(row['domain_knowledge']),
                         'last_login': row['last_login']
                     }
         return None
@@ -174,22 +171,19 @@ class UserManager:
                 'username': 'beginner_user',
                 'password': 'test123',
                 'email': 'beginner@test.com',
-                'sql_expertise_level': 1,
-                'domain_knowledge': 1
+                'sql_expertise_level': 1
             },
             {
                 'username': 'intermediate_user',
                 'password': 'test123',
                 'email': 'intermediate@test.com',
-                'sql_expertise_level': 3,
-                'domain_knowledge': 3
+                'sql_expertise_level': 3
             },
             {
                 'username': 'expert_user',
                 'password': 'test123',
                 'email': 'expert@test.com',
-                'sql_expertise_level': 5,
-                'domain_knowledge': 5
+                'sql_expertise_level': 5
             }
         ]
         
@@ -198,6 +192,5 @@ class UserManager:
                 username=user['username'],
                 password=user['password'],
                 email=user['email'],
-                sql_expertise_level=user['sql_expertise_level'],
-                domain_knowledge=user['domain_knowledge']
+                sql_expertise_level=user['sql_expertise_level']
             )

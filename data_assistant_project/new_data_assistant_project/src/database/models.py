@@ -18,7 +18,6 @@ class User:
     created_at: datetime
     last_login: Optional[datetime]
     sql_expertise_level: int
-    domain_knowledge: int
     cognitive_load_capacity: int
     has_completed_assessment: bool = False
     google_id: Optional[str] = None  # Keep for backward compatibility
@@ -37,7 +36,6 @@ class User:
             created_at=datetime.now(),
             last_login=None,
             sql_expertise_level=2,  # Default values
-            domain_knowledge=2,
             cognitive_load_capacity=3,
             has_completed_assessment=False
         )
@@ -55,7 +53,7 @@ class User:
         
         cursor.execute("""
             SELECT id, username, email, password_hash, role, name, profile_picture, 
-                   created_at, last_login, sql_expertise_level, domain_knowledge, 
+                   created_at, last_login, sql_expertise_level, 
                    cognitive_load_capacity, has_completed_assessment, google_id
             FROM users WHERE username = ?
         """, (username,))
@@ -69,9 +67,9 @@ class User:
                 role=row[4], name=row[5], profile_picture=row[6],
                 created_at=datetime.fromisoformat(row[7]),
                 last_login=datetime.fromisoformat(row[8]) if row[8] else None,
-                sql_expertise_level=row[9], domain_knowledge=row[10],
-                cognitive_load_capacity=row[11], has_completed_assessment=bool(row[12]),
-                google_id=row[13]
+                sql_expertise_level=row[9], 
+                cognitive_load_capacity=row[10], has_completed_assessment=bool(row[11]),
+                google_id=row[12]
             )
         return None
 
@@ -83,7 +81,7 @@ class User:
         
         cursor.execute("""
             SELECT id, username, email, password_hash, role, name, profile_picture, 
-                   created_at, last_login, sql_expertise_level, domain_knowledge, 
+                   created_at, last_login, sql_expertise_level, 
                    cognitive_load_capacity, has_completed_assessment, google_id
             FROM users WHERE id = ?
         """, (user_id,))
@@ -97,9 +95,9 @@ class User:
                 role=row[4], name=row[5], profile_picture=row[6],
                 created_at=datetime.fromisoformat(row[7]),
                 last_login=datetime.fromisoformat(row[8]) if row[8] else None,
-                sql_expertise_level=row[9], domain_knowledge=row[10],
-                cognitive_load_capacity=row[11], has_completed_assessment=bool(row[12]),
-                google_id=row[13]
+                sql_expertise_level=row[9], 
+                cognitive_load_capacity=row[10], has_completed_assessment=bool(row[11]),
+                google_id=row[12]
             )
         return None
     
@@ -111,7 +109,7 @@ class User:
         
         cursor.execute("""
             SELECT id, username, email, password_hash, role, name, profile_picture, 
-                   created_at, last_login, sql_expertise_level, domain_knowledge, 
+                   created_at, last_login, sql_expertise_level, 
                    cognitive_load_capacity, has_completed_assessment, google_id
             FROM users WHERE username = ?
         """, (username,))
@@ -125,9 +123,9 @@ class User:
                 role=row[4], name=row[5], profile_picture=row[6],
                 created_at=datetime.fromisoformat(row[7]),
                 last_login=datetime.fromisoformat(row[8]) if row[8] else None,
-                sql_expertise_level=row[9], domain_knowledge=row[10],
-                cognitive_load_capacity=row[11], has_completed_assessment=bool(row[12]),
-                google_id=row[13]
+                sql_expertise_level=row[9], 
+                cognitive_load_capacity=row[10], has_completed_assessment=bool(row[11]),
+                google_id=row[12]
             )
         return None
 
@@ -140,14 +138,14 @@ class User:
             # Insert new user
             cursor.execute("""
                 INSERT INTO users (username, email, password_hash, role, name, profile_picture, 
-                                 created_at, last_login, sql_expertise_level, domain_knowledge, 
+                                 created_at, last_login, sql_expertise_level, 
                                  cognitive_load_capacity, has_completed_assessment, google_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 self.username, self.email, self.password_hash, self.role, self.name, 
                 self.profile_picture, self.created_at.isoformat(), 
                 self.last_login.isoformat() if self.last_login else None,
-                self.sql_expertise_level, self.domain_knowledge, self.cognitive_load_capacity,
+                self.sql_expertise_level, self.cognitive_load_capacity,
                 self.has_completed_assessment, self.google_id
             ))
             self.id = cursor.lastrowid
@@ -157,12 +155,12 @@ class User:
                 UPDATE users
                 SET username = ?, email = ?, password_hash = ?, role = ?, name = ?, 
                     profile_picture = ?, last_login = ?, sql_expertise_level = ?, 
-                    domain_knowledge = ?, cognitive_load_capacity = ?, has_completed_assessment = ?
+                    cognitive_load_capacity = ?, has_completed_assessment = ?
                 WHERE id = ?
             """, (
                 self.username, self.email, self.password_hash, self.role, self.name,
                 self.profile_picture, self.last_login.isoformat() if self.last_login else None,
-                self.sql_expertise_level, self.domain_knowledge, self.cognitive_load_capacity,
+                self.sql_expertise_level, self.cognitive_load_capacity,
                 self.has_completed_assessment, self.id
             ))
         
@@ -174,11 +172,10 @@ class User:
         self.last_login = datetime.now()
         self.save(db_path)
     
-    def complete_assessment(self, db_path: str, sql_level: int, domain_level: int):
+    def complete_assessment(self, db_path: str, sql_level: int):
         """Mark assessment as completed and update levels."""
         self.has_completed_assessment = True
         self.sql_expertise_level = sql_level
-        self.domain_knowledge = domain_level
         self.cognitive_load_capacity = max(1, min(3, sql_level - 1))  # Map to cognitive capacity
         self.save(db_path)
 

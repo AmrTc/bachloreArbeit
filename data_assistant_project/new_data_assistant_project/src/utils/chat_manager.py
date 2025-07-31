@@ -1,5 +1,5 @@
 import streamlit as st
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 import logging
 from datetime import datetime
 
@@ -110,8 +110,8 @@ class ChatManager:
                     response_parts.append(df.to_markdown(index=False))
             else:
                 response_parts.append("❌ **Error:** Unable to process your query.")
-                if modified_result.error:
-                    response_parts.append(f"Details: {modified_result.error}")
+                if modified_result.error_message:
+                    response_parts.append(f"Details: {modified_result.error_message}")
             
             # Add explanation if provided
             if explanation_content and explanation_content.explanation_text:
@@ -285,11 +285,13 @@ class ChatManager:
                 height=100
             )
             
-            col1, col2, col3 = st.columns([2, 1, 1])
+            col1, col2, col3 = st.columns([3, 1, 1])
             with col1:
-                send_message = st.form_submit_button("📤 Send Message", use_container_width=True)
+                st.empty()  # Spacer
             with col2:
-                clear_chat = st.form_submit_button("🗑️ Clear Chat", use_container_width=True)
+                send_message = st.form_submit_button("Send", type="primary")
+            with col3:
+                clear_chat = st.form_submit_button("Clear", type="secondary")
             
             if send_message and user_input.strip():
                 with st.spinner("Processing your request..."):
@@ -315,10 +317,4 @@ class ChatManager:
             - "Compare sales between different customer segments"
             - "Find all orders with discounts greater than 20%"
             - "What's the average order value by category?"
-            
-            **Features:**
-            - 🧠 Intelligent explanations based on your expertise level
-            - 📊 Automatic data visualization
-            - 💡 Step-by-step SQL breakdown
-            - 📚 Learning-focused guidance
             """) 

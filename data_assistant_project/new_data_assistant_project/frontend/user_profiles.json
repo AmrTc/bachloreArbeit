@@ -2,7 +2,6 @@
   "beginner_user": {
     "user_id": "beginner_user",
     "sql_expertise_level": 2,
-    "domain_knowledge": 2,
     "cognitive_load_capacity": 3,
     "prior_query_history": [
       {
@@ -21,7 +20,6 @@
   "expert_user": {
     "user_id": "expert_user",
     "sql_expertise_level": 2,
-    "domain_knowledge": 2,
     "cognitive_load_capacity": 3,
     "prior_query_history": [
       {

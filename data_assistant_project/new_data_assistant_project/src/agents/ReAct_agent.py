@@ -35,7 +35,7 @@ class ReActAgent:
     Follows ReAct (Reasoning and Acting) paradigm for natural language to SQL conversion.
     """
     
-    def __init__(self, database_path: str = "new_data_assistant_project/src/database/superstore.db"):
+    def __init__(self, database_path: str = "src/database/superstore.db"):
         """
         Initialize ReAct Agent with database connection and API client.
         

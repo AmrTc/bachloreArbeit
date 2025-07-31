@@ -1,4 +1,4 @@
-username,password_hash,email,sql_expertise_level,domain_knowledge,last_login
-beginner_user,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,beginner@test.com,1,1,2025-07-26T16:19:09.600950
-intermediate_user,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,intermediate@test.com,3,3,2025-07-15T20:03:32.272286
-expert_user,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,expert@test.com,5,5,2025-07-28T17:17:24.739596
+username,password_hash,email,sql_expertise_level,last_login
+beginner_user,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,beginner@test.com,1,2025-07-26T16:19:09.600950
+intermediate_user,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,intermediate@test.com,3,2025-07-15T20:03:32.272286
+expert_user,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,expert@test.com,5,2025-07-28T17:17:24.739596

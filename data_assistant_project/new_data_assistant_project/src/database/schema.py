@@ -19,7 +19,6 @@ def create_tables(db_path: str = "src/database/superstore.db"):
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP,
         sql_expertise_level INTEGER DEFAULT 2,
-        domain_knowledge INTEGER DEFAULT 2,
         cognitive_load_capacity INTEGER DEFAULT 3,
         has_completed_assessment BOOLEAN DEFAULT FALSE,
         google_id TEXT  -- Keep for backward compatibility
