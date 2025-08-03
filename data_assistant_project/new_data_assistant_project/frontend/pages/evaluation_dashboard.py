@@ -13,9 +13,9 @@ def robust_import_modules():
     
     # Strategy 1: Try absolute imports (local development)
     try:
-        from new_data_assistant_project.src.database.models import ExplanationFeedback, User, ChatSession
-        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
-        from new_data_assistant_project.src.utils.auth_manager import AuthManager
+from new_data_assistant_project.src.database.models import ExplanationFeedback, User, ChatSession
+from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+from new_data_assistant_project.src.utils.auth_manager import AuthManager
         print("✅ Evaluation Dashboard: Absolute imports successful")
         return ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager
     except ImportError as e:
@@ -86,14 +86,14 @@ def render_evaluation_dashboard():
     
     with tab1:
         render_overview_tab()
-    
-    with tab2:
+        
+        with tab2:
         render_user_analytics_tab()
-    
-    with tab3:
+        
+        with tab3:
         render_feedback_analysis_tab()
-    
-    with tab4:
+        
+        with tab4:
         render_system_metrics_tab()
 
 def render_overview_tab():
@@ -170,7 +170,7 @@ def render_user_analytics_tab():
             names='Role',
             title='User Distribution by Role'
         )
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.subheader("User Activity Levels")
@@ -247,11 +247,11 @@ def render_feedback_analysis_tab():
     
     with col1:
         fig = px.bar(categories, x='Category', y='Count', title='Feedback by Category')
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         fig = px.bar(categories, x='Category', y='Avg Rating', title='Average Rating by Category')
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
 
 def render_system_metrics_tab():
     """Render system performance and technical metrics."""
