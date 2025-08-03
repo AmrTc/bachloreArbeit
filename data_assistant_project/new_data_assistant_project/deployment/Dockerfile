@@ -13,7 +13,7 @@ WORKDIR /app
 
 # Python Dependencies kopieren und installieren
 COPY requirements.txt .
-COPY setup.py .
+COPY ../setup.py .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -e .
@@ -43,8 +43,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Anwendung kopieren
 COPY .. .
 
-# Projekt im finalen Image installieren
-COPY setup.py .
+# Projekt im finalen Image installieren (setup.py ist bereits kopiert)
 RUN pip install --no-cache-dir -e .
 
 # Setup-Script erstellen für PYTHONPATH
