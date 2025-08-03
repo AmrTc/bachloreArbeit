@@ -13,7 +13,21 @@ WORKDIR /app
 
 # Python Dependencies kopieren und installieren
 COPY requirements.txt .
-COPY ../setup.py .
+
+# setup.py direkt erstellen (umgeht Build-Context-Problem)
+RUN echo 'from setuptools import setup, find_packages\n\
+setup(\n\
+    name="new_data_assistant_project",\n\
+    version="0.1.0",\n\
+    packages=find_packages(include=["new_data_assistant_project", "new_data_assistant_project.*"]),\n\
+    install_requires=[\n\
+        "anthropic",\n\
+        "pandas",\n\
+        "numpy",\n\
+    ],\n\
+    python_requires=">=3.8",\n\
+)' > setup.py
+
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -e .
@@ -43,7 +57,21 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Anwendung kopieren
 COPY .. .
 
-# Projekt im finalen Image installieren (setup.py ist bereits kopiert)
+# setup.py direkt erstellen (umgeht Build-Context-Problem)
+RUN echo 'from setuptools import setup, find_packages\n\
+setup(\n\
+    name="new_data_assistant_project",\n\
+    version="0.1.0",\n\
+    packages=find_packages(include=["new_data_assistant_project", "new_data_assistant_project.*"]),\n\
+    install_requires=[\n\
+        "anthropic",\n\
+        "pandas",\n\
+        "numpy",\n\
+    ],\n\
+    python_requires=">=3.8",\n\
+)' > setup.py
+
+# Projekt im finalen Image installieren
 RUN pip install --no-cache-dir -e .
 
 # Setup-Script erstellen für PYTHONPATH
