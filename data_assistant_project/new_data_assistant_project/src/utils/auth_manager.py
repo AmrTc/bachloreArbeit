@@ -84,16 +84,15 @@ class AuthManager:
             logger.error(f"Login error: {e}")
             return False, "An error occurred during login"
     
-    def register(self, username: str, email: str, password: str, confirm_password: str, 
-                name: str = None) -> Tuple[bool, str]:
+    def register(self, username: str, password: str, confirm_password: str) -> Tuple[bool, str]:
         """
         Register new user.
         Returns: (success: bool, message: str)
         """
         try:
             # Validation
-            if not username or not email or not password:
-                return False, "All fields are required"
+            if not username or not password:
+                return False, "Username and password are required"
             
             if password != confirm_password:
                 return False, "Passwords do not match"
@@ -106,11 +105,20 @@ class AuthManager:
                 return False, "Username already exists"
             
             # Create new user
-            user = User.create_user(username, email, password, name=name)
+            user = User.create_user(username, password)
             user.save(self.db_path)
             
             logger.info(f"New user registered: {username}")
-            return True, "Registration successful! You can now log in."
+            
+            # Automatically log in the user after successful registration
+            login_success, login_message = self.login(username, password)
+            if login_success:
+                # Set current page to welcome after successful registration and login
+                st.session_state.current_page = "welcome"
+                st.rerun()
+                return True, "Registration successful! Redirecting to welcome page..."
+            else:
+                return False, f"Registration successful but login failed: {login_message}"
             
         except Exception as e:
             logger.error(f"Registration error: {e}")
@@ -118,8 +126,8 @@ class AuthManager:
     
     def render_login_page(self):
         """Render login/registration page."""
-        st.title("🔐 Intelligent Explanation System")
-        st.markdown("### Welcome to the Data Assistant with Adaptive Explanations")
+        st.title("🔐 Intelligent explainable Data Assistant")
+        st.markdown("### Welcome to the Intelligent explainable Data Assistant")
         
         if not st.session_state.show_registration:
             self._render_login_form()
@@ -139,6 +147,8 @@ class AuthManager:
                 success, message = self.login(username, password)
                 if success:
                     st.success(message)
+                    # Set current page to welcome after successful login
+                    st.session_state.current_page = "welcome"
                     st.rerun()
                 else:
                     st.error(message)
@@ -150,18 +160,6 @@ class AuthManager:
             if st.button("📝 Register New Account"):
                 st.session_state.show_registration = True
                 st.rerun()
-        
-        with col2:
-            with st.expander("ℹ️ Demo Accounts"):
-                st.info("""
-                **Admin Account:**
-                - Username: `admin`
-                - Password: `admin123`
-                
-                **Test User Account:**
-                - Username: `test_user`
-                - Password: `test123`
-                """)
     
     def _render_registration_form(self):
         """Render registration form."""
@@ -169,8 +167,6 @@ class AuthManager:
         
         with st.form("registration_form"):
             username = st.text_input("Username*")
-            email = st.text_input("Email*")
-            name = st.text_input("Full Name (optional)")
             password = st.text_input("Password*", type="password")
             confirm_password = st.text_input("Confirm Password*", type="password")
             
@@ -181,81 +177,86 @@ class AuthManager:
                 cancel = st.form_submit_button("Cancel")
             
             if submit:
-                success, message = self.register(username, email, password, confirm_password, name)
+                success, message = self.register(username, password, confirm_password)
                 if success:
                     st.success(message)
                     st.session_state.show_registration = False
-                    st.rerun()
                 else:
                     st.error(message)
             
             if cancel:
                 st.session_state.show_registration = False
                 st.rerun()
-    
+    '''
     def render_assessment_page(self) -> bool:
         """
-        Render SQL expertise assessment page.
+        Render SQL expertise assessment page (now optional).
         Returns: True if assessment completed, False otherwise
         """
         user = self.get_current_user()
-        if not user or user.has_completed_assessment:
-            return True
+        if not user:
+            return False
         
         st.title("📊 SQL Expertise Assessment")
         st.markdown("""
-        Welcome! Before you can use the Data Assistant, we need to assess your SQL expertise level.
-        This helps us provide personalized explanations tailored to your knowledge level.
+        This assessment helps us provide personalized explanations tailored to your knowledge level.
+        The data for the assessment is also required for the evaluation.
         """)
         
-        with st.form("assessment_form"):
-            st.subheader("1. SQL Experience")
-            sql_experience = st.selectbox(
-                "How would you rate your SQL experience?",
-                [
-                    "1 - Complete beginner (never used SQL)",
-                    "2 - Novice (basic SELECT statements)",
-                    "3 - Intermediate (JOINs, GROUP BY, subqueries)",
-                    "4 - Advanced (window functions, CTEs, optimization)",
-                    "5 - Expert (database design, complex analytics)"
-                ]
-            )
+        # Show current assessment status
+        if user.has_completed_assessment:
+            st.success("✅ Assessment already completed!")
+            st.info(f"Your SQL expertise level: {user.sql_expertise_level}/5")
             
-            st.subheader("2. Additional Information")
-            background = st.text_area(
-                "Tell us about your professional background (optional):",
-                placeholder="e.g., Data Analyst, Software Developer, Business Analyst, Student..."
-            )
-            
-            submit_assessment = st.form_submit_button("Complete Assessment")
-            
-            if submit_assessment:
-                # Extract numeric values
-                sql_level = int(sql_experience.split(' - ')[0])
-                
-                # Complete assessment
-                user.complete_assessment(self.db_path, sql_level)
-                
-                st.success("Assessment completed! Redirecting to the Data Assistant...")
-                st.balloons()
-                
-                # Update session state
-                st.session_state.user = user
+            if st.button("🔄 Retake Assessment"):
+                user.has_completed_assessment = False
+                user.save(self.db_path)
                 st.rerun()
+        else:
+            with st.form("assessment_form"):
+                st.subheader("1. SQL Experience")
+                sql_experience = st.selectbox(
+                    "How would you rate your SQL experience?",
+                    [
+                        "1 - Complete beginner (never used SQL)",
+                        "2 - Novice (basic SELECT statements)",
+                        "3 - Intermediate (JOINs, GROUP BY, subqueries)",
+                        "4 - Advanced (window functions, CTEs, optimization)",
+                        "5 - Expert (database design, complex analytics)"
+                    ]
+                )
+                
+                st.subheader("2. Additional Information")
+                background = st.text_area(
+                    "Tell us about your professional background (optional):",
+                    placeholder="e.g., Data Analyst, Software Developer, Business Analyst, Student..."
+                )
+                
+                submit_assessment = st.form_submit_button("Complete Assessment")
+                
+                if submit_assessment:
+                    # Extract numeric values
+                    sql_level = int(sql_experience.split(' - ')[0])
+                    
+                    # Complete assessment
+                    user.complete_assessment(self.db_path, sql_level)
+                    
+                    st.success("Assessment completed! You can now access all features.")
+                    st.balloons()
+                    st.rerun()
         
-        return False
-    
+        return user.has_completed_assessment
+    '''
     def render_user_info(self):
         """Render user info in sidebar."""
         user = self.get_current_user()
         if user:
             with st.sidebar:
-                st.markdown("---")
-                st.markdown(f"**👤 {user.name or user.username}**")
-                st.markdown(f"*{user.role.title()}*")
+                # Clean user info
+                st.markdown(f"**{user.username}**")
+                st.markdown(f"<span style='color: #666; font-size: 0.9em;'>{user.role.title()}</span>", unsafe_allow_html=True)
                 
-                if user.has_completed_assessment:
-                    st.markdown(f"SQL Level: {user.sql_expertise_level}/5")
-                
-                if st.button("🚪 Logout"):
+                # Clean logout button
+                st.markdown("<div style='margin: 1rem 0;'></div>", unsafe_allow_html=True)
+                if st.button("Logout", type="secondary", use_container_width=True):
                     self.logout() 

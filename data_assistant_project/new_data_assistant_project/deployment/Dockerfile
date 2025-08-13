@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Python Dependencies kopieren und installieren
-COPY requirements.txt .
+COPY requirements-production.txt requirements.txt
 
 # setup.py direkt erstellen (umgeht Build-Context-Problem)
 RUN echo 'from setuptools import setup, find_packages\n\
@@ -24,6 +24,7 @@ setup(\n\
         "anthropic",\n\
         "pandas",\n\
         "numpy",\n\
+        "streamlit",\n\
     ],\n\
     python_requires=">=3.8",\n\
 )' > setup.py

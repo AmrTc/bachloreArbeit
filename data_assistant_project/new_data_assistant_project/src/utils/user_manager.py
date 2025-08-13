@@ -12,6 +12,7 @@ class UserManager:
     CSV_HEADERS = [
         'username', 'password_hash', 'email',
         'sql_expertise_level',
+        'age', 'gender', 'profession', 'education_level',
         'last_login'
     ]
     
@@ -72,7 +73,8 @@ class UserManager:
         return hashlib.sha256(password.encode()).hexdigest()
     
     def create_user(self, username: str, password: str, email: str,
-                   sql_expertise_level: int = 1) -> bool:
+                   sql_expertise_level: int = 1, age: int = 25, gender: str = "Not specified",
+                   profession: str = "Student", education_level: str = "Bachelor") -> bool:
         """
         Create a new user.
         
@@ -81,6 +83,10 @@ class UserManager:
             password: Plain text password to hash
             email: User's email
             sql_expertise_level: SQL expertise (1-5)
+            age: User's age (required)
+            gender: User's gender (required)
+            profession: User's profession (required)
+            education_level: User's education level (required)
             
         Returns:
             bool: True if user was created, False if username exists
@@ -95,6 +101,7 @@ class UserManager:
                 self._hash_password(password),
                 email,
                 sql_expertise_level,
+                age, gender, profession, education_level,
                 datetime.now().isoformat()
             ])
         return True
@@ -138,6 +145,10 @@ class UserManager:
                         'password_hash': row['password_hash'],
                         'email': row['email'],
                         'sql_expertise_level': int(row['sql_expertise_level']),
+                        'age': int(row.get('age', 25)),
+                        'gender': row.get('gender', 'Not specified'),
+                        'profession': row.get('profession', 'Student'),
+                        'education_level': row.get('education_level', 'Bachelor'),
                         'last_login': row['last_login']
                     }
         return None
@@ -171,19 +182,31 @@ class UserManager:
                 'username': 'beginner_user',
                 'password': 'test123',
                 'email': 'beginner@test.com',
-                'sql_expertise_level': 1
+                'sql_expertise_level': 1,
+                'age': 22,
+                'gender': 'Female',
+                'profession': 'Student',
+                'education_level': 'Bachelor'
             },
             {
                 'username': 'intermediate_user',
                 'password': 'test123',
                 'email': 'intermediate@test.com',
-                'sql_expertise_level': 3
+                'sql_expertise_level': 3,
+                'age': 28,
+                'gender': 'Male',
+                'profession': 'Data Analyst',
+                'education_level': 'Master'
             },
             {
                 'username': 'expert_user',
                 'password': 'test123',
                 'email': 'expert@test.com',
-                'sql_expertise_level': 5
+                'sql_expertise_level': 5,
+                'age': 35,
+                'gender': 'Female',
+                'profession': 'Data Scientist',
+                'education_level': 'PhD'
             }
         ]
         
@@ -192,5 +215,9 @@ class UserManager:
                 username=user['username'],
                 password=user['password'],
                 email=user['email'],
-                sql_expertise_level=user['sql_expertise_level']
+                sql_expertise_level=user['sql_expertise_level'],
+                age=user['age'],
+                gender=user['gender'],
+                profession=user['profession'],
+                education_level=user['education_level']
             )

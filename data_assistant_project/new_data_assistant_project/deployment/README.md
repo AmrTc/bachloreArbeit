@@ -1,217 +1,200 @@
-# Data Assistant - Docker Deployment
+# 🚀 EC2 Deployment Guide für Data Assistant Project
 
-🐳 **Professionelles Docker-Deployment für permanenten Betrieb und externe Erreichbarkeit**
+## 📋 Voraussetzungen
 
-## 🚀 Quick Start
+- AWS Account
+- EC2 Instance (t3.micro für Free Tier)
+- Domain (optional, für SSL)
+- GitHub Repository mit Ihrem Code
+
+## 🔧 Schritt-für-Schritt Deployment
+
+### **Schritt 1: EC2 Instance starten**
+
+1. **AWS Console** → **EC2** → **Launch Instance**
+2. **Instance Type**: `t3.micro` (Free Tier)
+3. **AMI**: Amazon Linux 2 (x86)
+4. **Storage**: 8 GB (Standard)
+5. **Security Group**: Port 8501 öffnen
+6. **Key Pair**: Erstellen oder bestehenden verwenden
+
+### **Schritt 2: EC2 Instance verbinden**
 
 ```bash
-# 1. Docker installieren (falls nötig)
-./docker-deploy.sh install-docker
+# SSH-Verbindung (ersetzen Sie die IP)
+ssh -i your-key.pem ec2-user@your-ec2-ip
 
-# 2. Permanentes Deployment mit externer Erreichbarkeit
-./docker-deploy.sh deploy --with-nginx
-
-# 3. Status prüfen
-./docker-deploy.sh status
+# Oder über AWS Console: EC2 → Connect → EC2 Instance Connect
 ```
 
-## 📋 Deployment-Optionen
+### **Schritt 3: Deployment Script ausführen**
 
-### **Standard (nur App):**
 ```bash
-./docker-deploy.sh deploy
-# → App läuft auf Port 8501
+# Script ausführbar machen
+chmod +x deployment/ec2-deploy.sh
+
+# Deployment starten
+./deployment/ec2-deploy.sh
 ```
 
-### **Mit Nginx (empfohlen für externe Erreichbarkeit):**
+### **Schritt 4: Environment Variables setzen**
+
 ```bash
-./docker-deploy.sh deploy --with-nginx
-# → App über Port 80 erreichbar
-# → Professionelle Reverse-Proxy Konfiguration
+# .env Datei bearbeiten
+nano .env
+
+# API Key setzen
+ANTHROPIC_API_KEY=your_actual_api_key_here
 ```
 
-### **Mit Monitoring:**
+### **Schritt 5: Anwendung starten**
+
 ```bash
-./docker-deploy.sh deploy --with-monitoring
-# → Zusätzlich Prometheus (Port 9090) + Grafana (Port 3000)
+# Docker Container starten
+docker-compose up -d --build
+
+# Status prüfen
+docker-compose ps
+docker-compose logs streamlit-app
 ```
 
-### **Vollständiges Setup:**
-```bash
-./docker-deploy.sh deploy --with-nginx --with-monitoring
-# → Alles: App + Nginx + Monitoring
+## 🌐 Zugriff auf die Anwendung
+
+### **Direkter Zugriff:**
+```
+http://YOUR_EC2_PUBLIC_IP:8501
 ```
 
-## 🌐 Externe Erreichbarkeit
-
-### **Option 1: Nginx Reverse Proxy (empfohlen)**
+### **Public IP finden:**
 ```bash
-# Deployment mit Nginx
-./docker-deploy.sh deploy --with-nginx
-
-# Zugriff:
-# - Lokal: http://localhost:80
-# - Extern: http://your-server-ip:80
-# - Domain: http://your-domain.com
+# Auf der EC2 Instance
+curl -s http://169.254.169.254/latest/meta-data/public-ipv4
 ```
 
-### **Option 2: SSH-Tunnel (für sichere Verbindungen)**
-```bash
-# Von einem anderen Computer:
-ssh -L 8501:localhost:8501 user@your-server
-# Browser: http://localhost:8501
+## 🔒 Sicherheit konfigurieren
 
-# Oder mit Nginx:
-ssh -L 8080:localhost:80 user@your-server  
-# Browser: http://localhost:8080
+### **Security Group Einstellungen:**
+- **Port 22 (SSH)**: Nur von Ihrer IP
+- **Port 8501 (Streamlit)**: 0.0.0.0/0 (öffentlich)
+- **Port 80/443**: Für Nginx (optional)
+
+### **Firewall auf EC2:**
+```bash
+# Firewall Status prüfen
+sudo systemctl status firewalld
+
+# Port 8501 ist bereits durch das Script geöffnet
 ```
 
-### **Option 3: Firewall-Konfiguration**
+## 📊 Monitoring und Wartung
+
+### **Logs anzeigen:**
 ```bash
-# Ports für externe Erreichbarkeit öffnen:
-sudo ufw allow 80/tcp    # HTTP
-sudo ufw allow 443/tcp   # HTTPS (falls SSL)
-sudo ufw allow 8501/tcp  # Direkt zur App
+# Streamlit Logs
+docker-compose logs -f streamlit-app
+
+# System Logs
+sudo journalctl -u docker
 ```
 
-## 🔄 Permanenter Betrieb
-
-### **Docker-Container Management:**
+### **Container neu starten:**
 ```bash
-# Status aller Container
-./docker-deploy.sh status
+# Anwendung neu starten
+docker-compose restart streamlit-app
 
-# Live-Logs verfolgen
-./docker-deploy.sh logs
-
-# Container neustarten
-./docker-deploy.sh restart
-
-# Container stoppen
-./docker-deploy.sh stop
-
-# Container starten
-./docker-deploy.sh start
+# Komplett neu bauen
+docker-compose down
+docker-compose up -d --build
 ```
 
-### **Automatischer Start nach Server-Neustart:**
-Container starten automatisch durch `restart: unless-stopped` in docker-compose.yml
-
-## 🛠️ Erweiterte Konfiguration
-
-### **Umgebungsvariablen (.env):**
+### **Updates deployen:**
 ```bash
-# .env Datei im Hauptverzeichnis bearbeiten:
-ANTHROPIC_API_KEY=your_api_key_here
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your_secure_password
-SECRET_KEY=your_secret_key
-SESSION_TIMEOUT=3600
-MAX_LOGIN_ATTEMPTS=3
-```
-
-### **Nginx für Custom Domain:**
-```bash
-# nginx.conf bearbeiten:
-server_name your-domain.com;
-```
-
-### **SSL/HTTPS einrichten:**
-```bash
-# SSL-Zertifikate in ./ssl/ Verzeichnis platzieren
-# Dann nginx.conf HTTPS-Sektion aktivieren
-```
-
-## 🔧 Wartung & Troubleshooting
-
-### **Container-Diagnose:**
-```bash
-# Alle Container anzeigen
-docker ps -a
-
-# Container-Logs
-docker logs data_assistant_app
-docker logs data_assistant_nginx
-
-# In Container hinein (Debugging)
-docker exec -it data_assistant_app bash
-
-# Container-Ressourcen
-docker stats
-```
-
-### **Datenbank-Management:**
-```bash
-# Backup erstellen
-./docker-deploy.sh backup
-
-# Datenbank-Volume prüfen
-docker volume ls
-```
-
-### **Updates:**
-```bash
-# Code-Updates
+# Code aktualisieren
 git pull origin main
-./docker-deploy.sh restart
 
-# Docker-Image neu bauen
-docker-compose build --no-cache
-./docker-deploy.sh restart
+# Container neu bauen
+docker-compose up -d --build
 ```
 
-## 📁 Datei-Struktur
+## 🚨 Troubleshooting
 
-```
-deployment/
-├── docker-deploy.sh      # Hauptskript
-├── docker-compose.yml    # Container-Konfiguration
-├── Dockerfile           # Image-Definition
-├── nginx.conf           # Reverse-Proxy Konfiguration
-└── README.md           # Diese Anleitung
-
-Generated at runtime:
-├── data/               # Persistente Daten
-├── logs/              # Container-Logs
-└── ssl/               # SSL-Zertifikate (optional)
-```
-
-## 🎯 Standard-Login
-
-```
-🌐 URL: http://your-server-ip (mit Nginx)
-🌐 URL: http://your-server-ip:8501 (direkt)
-
-👤 Benutzername: admin
-🔑 Passwort: admin123
-```
-
-**⚠️ WICHTIG: Ändern Sie das Admin-Passwort nach dem ersten Login!**
-
-## ⚡ Quick Commands
-
+### **Port nicht erreichbar:**
 ```bash
-# Komplettes Setup (neue VM):
-./docker-deploy.sh install-docker
-./docker-deploy.sh deploy --with-nginx
-./docker-deploy.sh status
+# Port Status prüfen
+sudo netstat -tlnp | grep 8501
 
-# Tägliche Wartung:
-./docker-deploy.sh logs     # Logs prüfen
-./docker-deploy.sh backup   # Backup erstellen
-
-# Bei Problemen:
-./docker-deploy.sh restart  # Neustart
-./docker-deploy.sh cleanup  # Bereinigung
+# Firewall Status
+sudo firewall-cmd --list-ports
 ```
 
-## 🌍 Zugriff von anderen Systemen
+### **Docker Probleme:**
+```bash
+# Docker Status
+sudo systemctl status docker
 
-Nach erfolgreichem Deployment ist die App erreichbar unter:
+# Docker neu starten
+sudo systemctl restart docker
+```
 
-- **Lokal auf dem Server:** `http://localhost` oder `http://localhost:8501`
-- **Andere Computer im Netzwerk:** `http://SERVER_IP` oder `http://SERVER_IP:8501`  
-- **Internet (falls konfiguriert):** `http://your-domain.com`
-- **SSH-Tunnel:** `ssh -L 8080:localhost:80 user@server` → `http://localhost:8080`
+### **Container startet nicht:**
+```bash
+# Logs prüfen
+docker-compose logs streamlit-app
 
-🎉 **Das System läuft permanent und ist von überall erreichbar!**
+# Container Status
+docker-compose ps
+```
+
+## 💰 Kostenoptimierung
+
+### **Free Tier (12 Monate):**
+- **EC2 t3.micro**: 750h/Monat
+- **EBS Storage**: 30 GB
+- **Data Transfer**: 15 GB
+
+### **Production (ab $15/Monat):**
+- **EC2 t3.small**: $15/Monat
+- **EBS Storage**: $1.20/GB/Monat
+- **Data Transfer**: $0.09/GB
+
+## 🔄 Automatisierung
+
+### **GitHub Actions (optional):**
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to EC2
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            cd data_assistant_project
+            git pull origin main
+            docker-compose up -d --build
+```
+
+## 📞 Support
+
+Bei Problemen:
+1. **Logs prüfen**: `docker-compose logs streamlit-app`
+2. **Container Status**: `docker-compose ps`
+3. **System Ressourcen**: `htop` oder `free -h`
+4. **Network**: `curl localhost:8501`
+
+## 🎯 Nächste Schritte
+
+1. **Domain konfigurieren** (optional)
+2. **SSL Certificate** (Let's Encrypt)
+3. **Nginx Reverse Proxy** (optional)
+4. **Monitoring** (CloudWatch)
+5. **Backup-Strategie** implementieren

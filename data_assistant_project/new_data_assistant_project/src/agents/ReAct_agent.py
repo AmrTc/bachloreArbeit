@@ -69,24 +69,36 @@ class ReActAgent:
         }
     
     def _get_database_schema(self) -> str:
-        """Extract database schema information for context."""
+        """Extract database schema information for context (all tables)."""
         try:
             with sqlite3.connect(self.database_path) as conn:
                 cursor = conn.cursor()
                 
-                # Get table names
+                # Show all available tables
+                schema_info = "Database Schema (All tables available):\n"
+                
+                # Get all table names
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
                 tables = cursor.fetchall()
                 
-                schema_info = "Database Schema:\n"
                 for table in tables:
                     table_name = table[0]
+                    schema_info += f"\nTable: {table_name}\n"
+                    
+                    # Get table info
                     cursor.execute(f"PRAGMA table_info({table_name});")
                     columns = cursor.fetchall()
                     
-                    schema_info += f"\nTable: {table_name}\n"
                     for col in columns:
                         schema_info += f"  - {col[1]} ({col[2]})\n"
+                    
+                    # Add sample data info
+                    try:
+                        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                        row_count = cursor.fetchone()[0]
+                        schema_info += f"  Total rows: {row_count}\n"
+                    except:
+                        schema_info += f"  Could not count rows\n"
                 
                 return schema_info
         except Exception as e:
@@ -183,15 +195,18 @@ class ReActAgent:
         
         {self.schema_info}
         
+        IMPORTANT: All SQL operations are now allowed. You can generate any type of SQL query.
+        
         For the given natural language query, follow this ReAct pattern:
         1. THOUGHT: Analyze what the user is asking for
         2. ACTION: Determine what SQL operations are needed
-        3. OBSERVATION: Consider the database schema and constraints
+        3. OBSERVATION: Consider the database schema and available tables
         4. THOUGHT: Plan the SQL query structure
         5. ACTION: Write the final SQL query
         
         Provide both your reasoning process and the final SQL query.
         Be precise and consider performance implications.
+        You can generate any SQL operation including SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, etc.
         
         Format your response as:
         REASONING:
@@ -239,7 +254,7 @@ class ReActAgent:
                 
         except Exception as e:
             logger.error(f"Error generating SQL: {e}")
-            return "", f"Error: {str(e)}"
+            return "", "I encountered an error while processing your request"
     
     def execute_query(self, user_query: str) -> QueryResult:
         """
@@ -263,15 +278,18 @@ class ReActAgent:
                     success=False,
                     data=None,
                     sql_query="",
-                    error_message="Failed to generate SQL query",
+                    error_message="I couldn't understand your request. Please try rephrasing your question about the data.",
                     execution_time=time.time() - start_time,
                     complexity_score=1
                 )
             
-            # Step 2: Assess query complexity for CLT & CFT Agent
+            # Step 2: SQL validation removed - all queries are now allowed
+            # The agent only receives instructions and does not share user information
+            
+            # Step 3: Assess query complexity for CLT & CFT Agent
             complexity_score = self._assess_query_complexity(sql_query)
             
-            # Step 3: Execute SQL query
+            # Step 4: Execute SQL query
             with sqlite3.connect(self.database_path) as conn:
                 try:
                     # Execute query and get results
@@ -292,21 +310,25 @@ class ReActAgent:
                     )
                     
                 except sqlite3.Error as e:
+                    # Log the actual error for debugging but return user-friendly message
+                    logger.error(f"SQL execution error: {str(e)}")
                     return QueryResult(
                         success=False,
                         data=None,
                         sql_query=sql_query,
-                        error_message=f"SQL execution error: {str(e)}",
+                        error_message="I encountered an issue while processing your request. Please try rephrasing your question or ask about different data.",
                         execution_time=time.time() - start_time,
                         complexity_score=complexity_score
                     )
                     
         except Exception as e:
+            # Log the actual error for debugging but return user-friendly message
+            logger.error(f"Processing error in ReAct agent: {str(e)}")
             return QueryResult(
                 success=False,
                 data=None,
                 sql_query="",
-                error_message=f"Processing error: {str(e)}",
+                error_message="I'm having trouble processing your request right now. Please try again with a different question about the business data.",
                 execution_time=time.time() - start_time,
                 complexity_score=1
             )
@@ -359,14 +381,33 @@ class ReActAgent:
                 cursor.execute(f"EXPLAIN QUERY PLAN {sql_query}")
                 return True, "Valid SQL syntax"
         except sqlite3.Error as e:
-            return False, f"Invalid SQL syntax: {str(e)}"
+            return False, "Invalid SQL syntax"
     
-    def get_sample_data(self, table_name: str, limit: int = 5) -> pd.DataFrame:
-        """Get sample data from a table for context."""
+    def get_sample_data(self, table_name: str = None, limit: int = 5) -> pd.DataFrame:
+        """Get sample data from the specified table or list all available tables."""
         try:
             with sqlite3.connect(self.database_path) as conn:
-                query = f"SELECT * FROM {table_name} LIMIT {limit}"
-                return pd.read_sql_query(query, conn)
+                if table_name:
+                    query = f"SELECT * FROM {table_name} LIMIT {limit}"
+                    return pd.read_sql_query(query, conn)
+                else:
+                    # List all available tables
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                    tables = cursor.fetchall()
+                    table_names = [table[0] for table in tables]
+                    
+                    # Create a DataFrame with table information
+                    table_info = []
+                    for table in table_names:
+                        try:
+                            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                            row_count = cursor.fetchone()[0]
+                            table_info.append({"table_name": table, "row_count": row_count})
+                        except:
+                            table_info.append({"table_name": table, "row_count": "Unknown"})
+                    
+                    return pd.DataFrame(table_info)
         except Exception as e:
             logger.error(f"Error getting sample data: {e}")
             return pd.DataFrame()
@@ -391,7 +432,9 @@ if __name__ == "__main__":
             "What are the top 5 products by sales?",
             "Show me sales by region and category",
             "Which customers have the highest profit margins?",
-            "Compare sales performance across different time periods"
+            "Compare sales performance across different time periods",
+            "Create a new table for customer feedback",
+            "Update the sales column for product ID 123"
         ]
         
         for query in test_queries:

@@ -58,104 +58,65 @@ ensure_correct_working_directory()
 def robust_import():
     """Import required modules with multiple fallback strategies."""
     
-    # Strategy 1: Try absolute imports (for local development)
     try:
         from new_data_assistant_project.src.utils.auth_manager import AuthManager
         from new_data_assistant_project.src.utils.chat_manager import ChatManager
         from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
-        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
         print("✅ Strategy 1: Absolute imports successful")
-        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+        return AuthManager, ChatManager, create_tables, create_admin_user
     except ImportError as e:
-        print(f"❌ Strategy 1 failed: {e}")
+        print(f"❌ Absolute imports failed: {e}")
     
-    # Strategy 2: Try direct imports (Docker/production - new structure)
     try:
         from src.utils.auth_manager import AuthManager
         from src.utils.chat_manager import ChatManager
         from src.database.schema import create_tables, create_admin_user
-        from src.utils.path_utils import get_absolute_path
         print("✅ Strategy 2: Direct imports successful")
-        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+        return AuthManager, ChatManager, create_tables, create_admin_user
     except ImportError as e:
-        print(f"❌ Strategy 2 failed: {e}")
+        print(f"❌ Direct imports failed: {e}")
     
-    # Strategy 3: Try with global import setup
     try:
-        import new_data_assistant_project
-        from new_data_assistant_project.src.utils.auth_manager import AuthManager
-        from new_data_assistant_project.src.utils.chat_manager import ChatManager
-        from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
-        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
-        print("✅ Strategy 3: Global imports successful")
-        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+        from src.utils.auth_manager import AuthManager
+        from src.utils.chat_manager import ChatManager
+        from src.database.schema import create_tables, create_admin_user
+        print("✅ Strategy 3: Relative imports successful")
+        return AuthManager, ChatManager, create_tables, create_admin_user
     except ImportError as e:
-        print(f"❌ Strategy 3 failed: {e}")
+        print(f"❌ Relative imports failed: {e}")
     
-    # Strategy 4: Manual path manipulation
+    # Manual path manipulation as last resort
+    current_dir = Path.cwd()
+    sys.path.insert(0, str(current_dir))
+    sys.path.insert(0, str(current_dir / 'src'))
     try:
-        # Add specific paths
-        current_dir = Path.cwd()
-        sys.path.insert(0, str(current_dir))
-        sys.path.insert(0, str(current_dir / 'src'))
-        
         from utils.auth_manager import AuthManager
         from utils.chat_manager import ChatManager
         from database.schema import create_tables, create_admin_user
-        from utils.path_utils import get_absolute_path
         print("✅ Strategy 4: Manual path imports successful")
-        return True, (AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path)
+        return AuthManager, ChatManager, create_tables, create_admin_user
     except ImportError as e:
-        print(f"❌ Strategy 4 failed: {e}")
-    
-    return False, None
+        print(f"❌ Manual path imports failed: {e}")
+        st.error(f"❌ Could not import required modules: {e}")
+        st.stop()
 
-# Import required modules
-import_success, modules = robust_import()
-
-if not import_success:
-    st.error("❌ Critical Error: Could not import required modules. Please check the installation.")
-    st.error(f"Current working directory: {os.getcwd()}")
-    st.error(f"Python path: {sys.path[:3]}...")
-    st.stop()
-
-# Unpack modules
-AuthManager, ChatManager, create_tables, create_admin_user, get_absolute_path = modules
+# Import modules
+AuthManager, ChatManager, create_tables, create_admin_user = robust_import()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Page configuration
-st.set_page_config(
-    page_title="Intelligent Explanation System",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+import traceback
 
-# Initialize database on startup
-@st.cache_resource
 def initialize_system():
-    """Initialize database and create admin user if needed."""
+    """Initialize system by checking directories and creating tables."""
     try:
-        import os
-        import traceback
-        
-        # Comprehensive diagnostics
-        cwd = os.getcwd()
-        logger.info(f"🔧 System Initialization Starting...")
-        logger.info(f"📁 Current working directory: {cwd}")
-        logger.info(f"🐍 Python path includes: {sys.path[:3]}...")
-        
-        # Check project structure
-        required_dirs = ["src", "src/database", "frontend"]
+        # Check required directories
+        required_dirs = ['src', 'src/database', 'frontend']
         missing_dirs = []
-        
         for dir_name in required_dirs:
-            if os.path.exists(dir_name):
-                logger.info(f"✅ Found directory: {dir_name}")
-            else:
+            if not os.path.exists(dir_name):
                 missing_dirs.append(dir_name)
                 logger.error(f"❌ Missing directory: {dir_name}")
         
@@ -199,6 +160,10 @@ chat_manager = ChatManager()
 def main():
     """Main application logic with authentication and role-based routing."""
     
+    # Initialize session state for current page
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "welcome"
+    
     # Check authentication
     if not auth_manager.is_authenticated():
         auth_manager.render_login_page()
@@ -210,11 +175,8 @@ def main():
     # Render user info in sidebar
     auth_manager.render_user_info()
     
-    # Check if user needs to complete assessment
-    if user.role == 'user' and not user.has_completed_assessment:
-        completed = auth_manager.render_assessment_page()
-        if not completed:
-            return
+    # Users go directly to welcome page after registration
+    # Assessment is optional and can be accessed via navigation
     
     # Role-based navigation and content
     if user.role == 'admin':
@@ -224,18 +186,61 @@ def main():
 
 def render_admin_interface():
     """Render admin interface with navigation."""
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔧 Admin Navigation")
     
-    page = st.sidebar.radio(
-        "Select Page:",
-        ["🤖 Data Assistant", "📊 Evaluation Dashboard"]
-    )
+    # Direct page routing without sidebar navigation
+    if st.session_state.current_page == "welcome":
+        try:
+            from new_data_assistant_project.frontend.pages.welcome_page import render_welcome_page
+        except ImportError:
+            try:
+                from frontend.pages.welcome_page import render_welcome_page
+            except ImportError:
+                try:
+                    from pages.welcome_page import render_welcome_page
+                except ImportError:
+                    st.error("❌ Could not import welcome page")
+                    return
+        
+        user = auth_manager.get_current_user()
+        render_welcome_page(user)
     
-    if page == "🤖 Data Assistant":
+    elif page == "📊 Assessment":
+        try:
+            from new_data_assistant_project.frontend.pages.assessment_page import render_assessment_page
+        except ImportError:
+            try:
+                from frontend.pages.assessment_page import render_assessment_page
+            except ImportError:
+                try:
+                    from pages.assessment_page import render_assessment_page
+                except ImportError:
+                    st.error("❌ Could not import assessment page")
+                    return
+        
+        user = auth_manager.get_current_user()
+        render_assessment_page(user)
+    
+    elif page == "💼 Task Phase":
+        try:
+            from new_data_assistant_project.frontend.pages.task_page import render_task_page
+        except ImportError:
+            try:
+                from frontend.pages.task_page import render_task_page
+            except ImportError:
+                try:
+                    from pages.task_page import render_task_page
+                except ImportError:
+                    st.error("❌ Could not import task page")
+                    return
+        
+        user = auth_manager.get_current_user()
+        render_task_page(user)
+    
+    elif page == "🤖 Data Assistant":
         user = auth_manager.get_current_user()
         chat_manager.render_chat_interface(user)
-    else:
+    
+    else:  # Evaluation Dashboard
         # Import evaluation dashboard with same robust strategy
         try:
             from new_data_assistant_project.frontend.pages.evaluation_dashboard import render_evaluation_dashboard
@@ -252,8 +257,90 @@ def render_admin_interface():
         render_evaluation_dashboard()
 
 def render_user_interface(user):
-    """Render user interface (chat only)."""
-    chat_manager.render_chat_interface(user)
+    """Render user interface with 4-page structure."""
+    
+    # Initialize current page if not set - default to welcome
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "welcome"
+    
+    # Clean sidebar separator
+    st.sidebar.markdown("<div style='margin: 1rem 0; border-top: 1px solid #f0f0f0;'></div>", unsafe_allow_html=True)
+    
+
+    
+    # Page routing
+    if st.session_state.current_page == "welcome":
+        try:
+            from new_data_assistant_project.frontend.pages.welcome_page import render_welcome_page
+        except ImportError:
+            try:
+                from frontend.pages.welcome_page import render_welcome_page
+            except ImportError:
+                try:
+                    from pages.welcome_page import render_welcome_page
+                except ImportError:
+                    st.error("❌ Could not import welcome page")
+                    return
+        
+        render_welcome_page(user)
+    
+    elif st.session_state.current_page == "assessment":
+        try:
+            from new_data_assistant_project.frontend.pages.assessment_page import render_assessment_page
+        except ImportError:
+            try:
+                from frontend.pages.assessment_page import render_assessment_page
+            except ImportError:
+                try:
+                    from pages.assessment_page import render_assessment_page
+                except ImportError:
+                    st.error("❌ Could not import assessment page")
+                    return
+        
+        render_assessment_page(user)
+    
+    elif st.session_state.current_page == "task":
+        try:
+            from new_data_assistant_project.frontend.pages.task_page import render_task_page
+        except ImportError:
+            try:
+                from frontend.pages.task_page import render_task_page
+            except ImportError:
+                try:
+                    from pages.task_page import render_task_page
+                except ImportError:
+                    st.error("❌ Could not import task page")
+                    return
+        
+        render_task_page(user)
+    
+    elif st.session_state.current_page == "data_assistant":
+        user = auth_manager.get_current_user()
+        chat_manager.render_chat_interface(user)
+    
+    elif st.session_state.current_page == "feedback":
+        # Check if user has completed tasks
+        if not st.session_state.get('tasks_completed', False):
+            st.error("❌ You must complete all tasks before accessing the feedback page.")
+            st.info("Please return to the Task Phase and complete all 8 tasks.")
+            st.session_state.current_page = "task"
+            st.rerun()
+            return
+        
+        try:
+            from new_data_assistant_project.frontend.pages.feedback_page import render_feedback_page
+        except ImportError:
+            try:
+                from frontend.pages.feedback_page import render_feedback_page
+            except ImportError:
+                try:
+                    from pages.feedback_page import render_feedback_page
+                except ImportError:
+                    st.error("❌ Could not import feedback page")
+                    return
+        
+        render_feedback_page(user)
+
 
 if __name__ == "__main__":
     main()

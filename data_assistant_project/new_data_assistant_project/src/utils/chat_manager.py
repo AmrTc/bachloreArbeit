@@ -46,6 +46,72 @@ class ChatManager:
         """Clear chat history for specific user."""
         chat_key = self._get_user_chat_key(user_id)
         st.session_state[chat_key] = []
+        # Also clear the database chat history for this user
+        try:
+            from new_data_assistant_project.src.database.models import ChatSession
+            ChatSession.delete_user_sessions(self.db_path, user_id)
+        except Exception as e:
+            logger.error(f"Error clearing database chat history: {e}")
+    
+    def _get_or_create_user_profile(self, user: User):
+        """Get or create user profile for CLT-CFT assessment"""
+        try:
+            # Try to get existing profile from agent
+            if user.username in self.agent.user_profiles:
+                return self.agent.user_profiles[user.username]
+            
+            # Create new profile based on user data
+            from new_data_assistant_project.src.agents.clt_cft_agent import UserProfile
+            
+            # Map user level to SQL expertise
+            level_mapping = {
+                "Beginner": 1,
+                "Novice": 2,
+                "Intermediate": 3,
+                "Advanced": 4,
+                "Expert": 5
+            }
+            
+            sql_expertise = level_mapping.get(user.user_level_category, 3)
+            cognitive_capacity = max(1, min(5, user.total_assessment_score // 4))
+            
+            profile = UserProfile(
+                user_id=user.username,
+                sql_expertise_level=sql_expertise,
+                cognitive_load_capacity=cognitive_capacity,
+                sql_concept_levels=user.sql_concept_levels or {},
+                prior_query_history=user.prior_query_history or [],
+                learning_preferences=user.learning_preferences or {},
+                last_updated=datetime.now().isoformat(),
+                # Required Assessment Fields
+                age=user.age or 25,
+                gender=user.gender or "Not specified",
+                profession=user.profession or "Student",
+                education_level=user.education_level or "Bachelor"
+            )
+            
+            # Store in agent's user profiles
+            self.agent.user_profiles[user.username] = profile
+            return profile
+            
+        except Exception as e:
+            logger.error(f"Error creating user profile: {e}")
+            # Return default profile
+            from new_data_assistant_project.src.agents.clt_cft_agent import UserProfile
+            return UserProfile(
+                user_id=user.username,
+                sql_expertise_level=3,
+                cognitive_load_capacity=3,
+                sql_concept_levels=user.sql_concept_levels or {},
+                prior_query_history=user.prior_query_history or [],
+                learning_preferences=user.learning_preferences or {},
+                last_updated=datetime.now().isoformat(),
+                # Required Assessment Fields
+                age=user.age or 25,
+                gender=user.gender or "Not specified",
+                profession=user.profession or "Student",
+                education_level=user.education_level or "Bachelor"
+            )
     
     def load_user_chat_history(self, user_id: int, limit: int = 20):
         """Load recent chat history for user from database."""
@@ -89,7 +155,14 @@ class ChatManager:
         Returns: (response_text, explanation_given, session_id)
         """
         try:
-            # Execute query using CLT-CFT agent
+            # SQL validation removed - all queries are now allowed
+            # The agent only receives instructions and does not share user information
+            
+            # First, assess task complexity using CLT-CFT framework
+            user_profile = self._get_or_create_user_profile(user)
+            task_assessment = self.agent._assess_task_complexity(user_message, user_profile)
+            
+            # Execute query using CLT-CFT agent with complexity assessment
             result = self.agent.execute_query(user.username, user_message, include_debug_info=False)
             modified_result, explanation_content = result
             
@@ -147,7 +220,7 @@ class ChatManager:
             
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            error_response = f"❌ **System Error:** {str(e)}"
+            error_response = "❌ **System Error:** I'm experiencing technical difficulties. Please try again in a moment."
             
             # Still save error session
             try:
@@ -175,8 +248,8 @@ class ChatManager:
         feedback_state = st.session_state.pending_feedback[feedback_key]
         
         if not feedback_state['submitted']:
-            st.markdown("---")
-            st.markdown("**📝 Feedback:** Help us improve the system!")
+            st.markdown("<div style='margin: 1rem 0; border-top: 1px solid #f0f0f0;'></div>", unsafe_allow_html=True)
+            st.markdown("<span style='color: #555; font-size: 0.9em;'>📝 **Feedback:** Help us improve the system!</span>", unsafe_allow_html=True)
             
             with st.form(f"feedback_form_{session_id}"):
                 if explanation_given:
@@ -237,10 +310,14 @@ class ChatManager:
     def render_chat_interface(self, user: User):
         """Render the main chat interface."""
         st.title("🤖 Intelligent Data Assistant")
-        st.markdown(f"Welcome back, **{user.name or user.username}**! Ask me anything about your data.")
+        st.markdown(f"Welcome back, **{user.username}**! Ask me anything about your data.")
         
-        # Load chat history for this specific user
-        self.load_user_chat_history(user.id)
+        # Check if we should skip loading chat history (after clear operation)
+        skip_load_history = st.session_state.get(f'skip_load_history_user_{user.id}', False)
+        
+        # Load chat history for this specific user (only if not skipping)
+        if not skip_load_history:
+            self.load_user_chat_history(user.id)
         
         # Get user-specific chat history
         user_chat_history = self._get_user_chat_history(user.id)
@@ -294,6 +371,8 @@ class ChatManager:
                 clear_chat = st.form_submit_button("Clear", type="secondary")
             
             if send_message and user_input.strip():
+                # Reset skip flag when sending new message
+                st.session_state[f'skip_load_history_user_{user.id}'] = False
                 with st.spinner("Processing your request..."):
                     response, explanation_given, session_id = self.process_user_message(user, user_input.strip())
                     st.rerun()
@@ -305,6 +384,8 @@ class ChatManager:
                                     if key.startswith(f"feedback_")]
                 for key in user_feedback_keys:
                     del st.session_state.pending_feedback[key]
+                # Set flag to skip loading history on next render
+                st.session_state[f'skip_load_history_user_{user.id}'] = True
                 st.success("Chat history cleared!")
                 st.rerun()
         

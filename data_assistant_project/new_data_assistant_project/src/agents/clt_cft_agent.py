@@ -31,15 +31,25 @@ class UserProfile:
     prior_query_history: List[Dict]
     learning_preferences: Dict[str, Any]
     last_updated: str
+    
+    # Required Assessment Fields
+    age: int
+    gender: str
+    profession: str
+    education_level: str
 
 @dataclass
 class CognitiveAssessment:
-    """Simplified cognitive assessment - only intrinsic load vs capacity"""
-    intrinsic_load: int       # 1-5 scale (task complexity)
+    """Enhanced cognitive assessment with CLT-CFT based complexity"""
+    intrinsic_load: float     # 1-10 scale (task complexity)
     task_sql_concept: str     # Which SQL concept this task belongs to
     explanation_needed: bool
     explanation_type: str     # "basic", "intermediate", "advanced", "none"
     reasoning: str
+    task_classification: str  # "Data Analysis" or "Non-Data Analysis"
+    complexity_breakdown: Dict[str, float]  # Detailed complexity scores
+    user_capability_threshold: float  # User's capability level
+    final_complexity_score: float  # Final complexity after CFT adjustments
 
 @dataclass
 class ExplanationContent:
@@ -95,6 +105,110 @@ class CLTCFTAgent:
         
 
         
+        # CLT-CFT Task Complexity Assessment Framework
+        self.task_complexity_assessment_prompt = """
+# CLT-CFT Task Complexity Assessment Agent
+
+## Role
+You are an expert Task Complexity Assessment Agent specialized in evaluating Data Analysis tasks using Cognitive Load Theory (CLT) and Cognitive Fit Theory (CFT) principles. Your primary function is to determine task complexity and predict which user expertise levels can successfully complete given tasks.
+
+## Assessment Framework
+
+### Phase 1: Task Classification
+Determine if the task is **Data Analysis** or **Non-Data Analysis**:
+
+**Data Analysis Tasks (IN SCOPE):**
+- Descriptive Analytics: Summarizing, exploring, profiling data
+- Trend Analysis: Time series patterns, growth analysis, seasonal trends  
+- Comparative Analysis: Benchmarking, A/B testing, performance comparison
+- Segmentation Analysis: Customer/product grouping, clustering, classification
+- Forecasting & Prediction: Statistical modeling, trend extrapolation
+- Performance Analysis: KPI tracking, efficiency metrics, ROI analysis
+- Pattern Recognition: Anomaly detection, correlation analysis
+- Business Intelligence: Dashboard creation, reporting, visualization
+
+**Non-Data Analysis Tasks (OUT OF SCOPE):**
+- Pure programming/coding without analytical purpose
+- Database administration tasks
+- General business strategy without data foundation
+- Technical troubleshooting
+
+### Phase 2: CLT-Based Complexity Assessment
+
+Calculate **Intrinsic Cognitive Load** based on Element Interactivity:
+
+**Data Dimensionality (30%):** Score 1-10
+- Variables/dimensions: 1-2=Low, 3-5=Medium, 6+=High
+- Data relationships complexity
+- Temporal elements: single period=1, time series=+2, multi-period=+3
+
+**Analytical Complexity (40%):** Score 1-10  
+- Statistical concepts: descriptive=1-3, inferential=4-6, advanced=7-10
+- Calculation complexity: aggregation=1-3, ratios=4-6, modeling=7-10
+- Interpretation depth: trends=1-3, patterns=4-6, insights=7-10
+
+**Presentation Complexity (20%):** Score 1-10
+- Visualization: tables=1-3, basic charts=4-6, complex viz=7-10
+- Output format: single metric=1-3, dashboard=4-6, report=7-10
+
+**Temporal Pressure (10%):** Score 1-10
+- Decision urgency: routine=1-3, important=4-6, critical=7-10
+
+**Formula:**
+Intrinsic_Load = (Data_Dimensionality × 0.3) + (Analytical_Complexity × 0.4) + (Presentation_Complexity × 0.2) + (Temporal_Pressure × 0.1)
+
+### Phase 3: CFT-Based Fit Assessment
+
+**Cognitive Fit Factors:**
+- Spatial vs Symbolic Processing requirements
+- Problem Structure Clarity (well-defined vs exploratory)
+- Domain Knowledge Requirements
+
+**CFT Misfit Penalties:**
+- Spatial task + symbolic user preference: +2
+- Domain expertise required + user lacks knowledge: +3
+- Ill-defined goals + user needs structure: +2
+- Real-time decisions + user prefers deliberation: +1
+
+**Final Score:** CLT_Score + Misfit_Penalty
+
+### Phase 4: User Capability Mapping
+
+**User Expertise Levels:**
+- **Level 1 (Beginner):** Can handle complexity ≤ 3.0
+- **Level 2 (Novice):** Can handle complexity ≤ 4.5  
+- **Level 3 (Intermediate):** Can handle complexity ≤ 6.5
+- **Level 4 (Advanced):** Can handle complexity ≤ 8.5
+- **Level 5 (Expert):** Can handle complexity ≤ 10.0
+
+### Phase 5: Explanation Need Prediction
+
+**Decision Logic:**
+IF Final_Complexity_Score > User_Capability_Threshold:
+    PROVIDE Explanation
+ELSE:
+    PROVIDE Basic Response Only
+
+## Output Format
+Return a JSON object with the following structure:
+{
+    "task_classification": "Data Analysis" or "Non-Data Analysis",
+    "complexity_breakdown": {
+        "data_dimensionality": float (1-10),
+        "analytical_complexity": float (1-10),
+        "presentation_complexity": float (1-10),
+        "temporal_pressure": float (1-10),
+        "intrinsic_load": float (calculated),
+        "cft_misfit_penalty": float (0-3),
+        "final_complexity_score": float (1-10)
+    },
+    "user_capability_threshold": float (based on user level),
+    "explanation_needed": boolean,
+    "explanation_type": "basic", "intermediate", "advanced", or "none",
+    "reasoning": "detailed explanation of the assessment"
+}
+"""
+
         # SQL concept complexity hierarchy for task classification
         self.sql_complexity_hierarchy = {
             1: ["SELECT", "FROM", "WHERE", "basic filtering"],
@@ -135,6 +249,56 @@ class CLTCFTAgent:
         except Exception as e:
             logger.error(f"Error saving user profiles: {e}")
     
+    def _validate_user_profiles(self):
+        """Validate that all user profiles have required assessment fields."""
+        required_fields = ['age', 'gender', 'profession', 'education_level']
+        
+        for user_id, profile in self.user_profiles.items():
+            missing_fields = []
+            
+            if not hasattr(profile, 'age') or profile.age is None:
+                missing_fields.append('age')
+            if not hasattr(profile, 'gender') or not profile.gender:
+                missing_fields.append('gender')
+            if not hasattr(profile, 'profession') or not profile.profession:
+                missing_fields.append('profession')
+            if not hasattr(profile, 'education_level') or not profile.education_level:
+                missing_fields.append('education_level')
+            
+            if missing_fields:
+                logger.warning(f"User {user_id} missing required assessment fields: {missing_fields}")
+                # Set default values for missing fields
+                if 'age' in missing_fields:
+                    profile.age = 25
+                if 'gender' in missing_fields:
+                    profile.gender = "Not specified"
+                if 'profession' in missing_fields:
+                    profile.profession = "Student"
+                if 'education_level' in missing_fields:
+                    profile.education_level = "Bachelor"
+                
+                logger.info(f"Set default values for user {user_id}: age={profile.age}, gender={profile.gender}, profession={profile.profession}, education_level={profile.education_level}")
+        
+        # Save updated profiles
+        if any(hasattr(profile, 'age') and profile.age is not None for profile in self.user_profiles.items()):
+            self._save_user_profiles()
+    
+    def update_user_assessment_fields(self, user_id: str, age: int, gender: str, profession: str, education_level: str):
+        """Update user assessment fields."""
+        if user_id in self.user_profiles:
+            profile = self.user_profiles[user_id]
+            profile.age = age
+            profile.gender = gender
+            profile.profession = profession
+            profile.education_level = education_level
+            profile.last_updated = datetime.now().isoformat()
+            
+            # Save updated profile
+            self._save_user_profiles()
+            logger.info(f"Updated assessment fields for user {user_id}")
+        else:
+            logger.warning(f"User {user_id} not found in profiles")
+    
 
     
     def _classify_sql_task(self, sql_query: str) -> str:
@@ -171,6 +335,201 @@ class CLTCFTAgent:
         
         # Default to basic select
         return "basic_select"
+    
+    def _assess_task_complexity(self, user_query: str, user_profile: UserProfile) -> CognitiveAssessment:
+        """
+        Assess task complexity using CLT-CFT framework.
+        
+        Args:
+            user_query: The user's data analysis request
+            user_profile: User's cognitive profile
+            
+        Returns:
+            CognitiveAssessment with detailed complexity analysis
+        """
+        try:
+            # Prepare user context for assessment
+            user_level = self._get_user_level_from_profile(user_profile)
+            user_capability_threshold = self._get_capability_threshold(user_level)
+            
+            # Create direct instructions for the LLM to create CognitiveAssessment
+            assessment_instructions = f"""
+You are a Task Complexity Assessment Agent. Based on the user query and context below, create a CognitiveAssessment object.
+
+## User Query: "{user_query}"
+
+## User Context:
+- User Level: {user_level}
+- User Capability Threshold: {user_capability_threshold}
+- SQL Expertise: {user_profile.sql_expertise_level}/5
+- Cognitive Load Capacity: {user_profile.cognitive_load_capacity}/5
+
+## Instructions:
+Create a CognitiveAssessment with these exact values:
+
+1. **intrinsic_load**: Calculate based on query complexity (1-10 scale)
+   - Simple queries (show, list): 1-3
+   - Medium queries (analyze, compare): 4-6  
+   - Complex queries (forecast, model): 7-10
+
+2. **task_sql_concept**: "data_analysis" for business queries
+
+3. **explanation_needed**: true if intrinsic_load > user_capability_threshold, false otherwise
+
+4. **explanation_type**: "basic" if explanation_needed, "none" otherwise
+
+5. **reasoning**: Brief explanation of your assessment
+
+6. **task_classification**: "Data Analysis"
+
+7. **complexity_breakdown**: Create a dictionary with:
+   - "data_dimensionality": intrinsic_load * 0.3
+   - "analytical_complexity": intrinsic_load * 0.4
+   - "presentation_complexity": intrinsic_load * 0.2
+   - "temporal_pressure": intrinsic_load * 0.1
+   - "intrinsic_load": same as intrinsic_load above
+   - "cft_misfit_penalty": 0.0
+   - "final_complexity_score": same as intrinsic_load
+
+8. **user_capability_threshold**: {user_capability_threshold}
+
+9. **final_complexity_score**: same as intrinsic_load
+
+## Response Format:
+Return ONLY a valid JSON object with these exact field names and values.
+"""
+
+            # Get LLM assessment with clear instructions
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=800,
+                temperature=0.1,
+                messages=[
+                    {"role": "system", "content": "You are a JSON response agent. Return ONLY valid JSON with the exact field names specified. No additional text or formatting."},
+                    {"role": "user", "content": assessment_instructions}
+                ]
+            )
+            
+            # Extract and parse response
+            raw_response = response.content[0].text.strip()
+            logger.info(f"Raw LLM response: {raw_response}")
+            
+            # Clean the response and parse JSON
+            try:
+                # Remove any markdown formatting
+                if raw_response.startswith('```json'):
+                    raw_response = raw_response.replace('```json', '').replace('```', '').strip()
+                elif raw_response.startswith('```'):
+                    raw_response = raw_response.replace('```', '').strip()
+                
+                assessment_data = json.loads(raw_response)
+                
+                # Create CognitiveAssessment object directly
+                assessment = CognitiveAssessment(
+                    intrinsic_load=float(assessment_data.get("intrinsic_load", 5.0)),
+                    task_sql_concept=assessment_data.get("task_sql_concept", "data_analysis"),
+                    explanation_needed=bool(assessment_data.get("explanation_needed", True)),
+                    explanation_type=assessment_data.get("explanation_type", "basic"),
+                    reasoning=assessment_data.get("reasoning", "LLM-based assessment"),
+                    task_classification=assessment_data.get("task_classification", "Data Analysis"),
+                    complexity_breakdown=assessment_data.get("complexity_breakdown", {
+                        "data_dimensionality": 5.0,
+                        "analytical_complexity": 5.0,
+                        "presentation_complexity": 5.0,
+                        "temporal_pressure": 5.0,
+                        "intrinsic_load": 5.0,
+                        "cft_misfit_penalty": 0.0,
+                        "final_complexity_score": 5.0
+                    }),
+                    user_capability_threshold=float(assessment_data.get("user_capability_threshold", user_capability_threshold)),
+                    final_complexity_score=float(assessment_data.get("final_complexity_score", 5.0))
+                )
+                
+                return assessment
+                
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                logger.error(f"Failed to parse LLM response: {e}")
+                logger.error(f"Raw response: {raw_response}")
+                # Fallback to heuristic assessment
+                return self._fallback_complexity_assessment(user_query, user_profile)
+            
+        except Exception as e:
+            logger.error(f"Error in task complexity assessment: {e}")
+            # Fallback assessment
+            return self._fallback_complexity_assessment(user_query, user_profile)
+    
+    def _get_user_level_from_profile(self, user_profile: UserProfile) -> str:
+        """Get user level from profile"""
+        if hasattr(user_profile, 'user_level_category'):
+            return user_profile.user_level_category
+        else:
+            # Fallback based on SQL expertise
+            if user_profile.sql_expertise_level <= 1:
+                return "Beginner"
+            elif user_profile.sql_expertise_level <= 2:
+                return "Novice"
+            elif user_profile.sql_expertise_level <= 3:
+                return "Intermediate"
+            elif user_profile.sql_expertise_level <= 4:
+                return "Advanced"
+            else:
+                return "Expert"
+    
+    def _get_capability_threshold(self, user_level: str) -> float:
+        """Get capability threshold based on user level"""
+        thresholds = {
+            "Beginner": 3.0,
+            "Novice": 4.5,
+            "Intermediate": 6.5,
+            "Advanced": 8.5,
+            "Expert": 10.0
+        }
+        return thresholds.get(user_level, 5.0)
+    
+    def _fallback_complexity_assessment(self, user_query: str, user_profile: UserProfile) -> CognitiveAssessment:
+        """Fallback complexity assessment when LLM assessment fails"""
+        # Simple heuristic-based assessment
+        complexity_keywords = {
+            "high": ["forecast", "predict", "model", "regression", "correlation", "trend", "pattern"],
+            "medium": ["compare", "analyze", "segment", "group", "aggregate", "summarize"],
+            "low": ["show", "list", "find", "count", "basic", "simple"]
+        }
+        
+        query_lower = user_query.lower()
+        base_complexity = 5.0  # Default medium complexity
+        
+        for level, keywords in complexity_keywords.items():
+            if any(keyword in query_lower for keyword in keywords):
+                if level == "high":
+                    base_complexity = 8.0
+                elif level == "medium":
+                    base_complexity = 5.0
+                else:
+                    base_complexity = 2.0
+                break
+        
+        user_level = self._get_user_level_from_profile(user_profile)
+        user_capability = self._get_capability_threshold(user_level)
+        
+        return CognitiveAssessment(
+            intrinsic_load=base_complexity,
+            task_sql_concept="basic",
+            explanation_needed=base_complexity > user_capability,
+            explanation_type="basic" if base_complexity > user_capability else "none",
+            reasoning=f"Fallback assessment: Task complexity {base_complexity}, User capability {user_capability}",
+            task_classification="Data Analysis",
+            complexity_breakdown={
+                "data_dimensionality": base_complexity * 0.3,
+                "analytical_complexity": base_complexity * 0.4,
+                "presentation_complexity": base_complexity * 0.2,
+                "temporal_pressure": base_complexity * 0.1,
+                "intrinsic_load": base_complexity,
+                "cft_misfit_penalty": 0.0,
+                "final_complexity_score": base_complexity
+            },
+            user_capability_threshold=user_capability,
+            final_complexity_score=base_complexity
+        )
     
     def _llm_based_cognitive_assessment(self, user_id: str, react_result: QueryResult) -> CognitiveAssessment:
         """
@@ -214,7 +573,19 @@ class CLTCFTAgent:
             task_sql_concept=task_concept,
             explanation_needed=explanation_needed,
             explanation_type=explanation_type,
-            reasoning=reasoning
+            reasoning=reasoning,
+            task_classification="Data Analysis",
+            complexity_breakdown={
+                "data_dimensionality": intrinsic_load * 0.3,
+                "analytical_complexity": intrinsic_load * 0.4,
+                "presentation_complexity": intrinsic_load * 0.2,
+                "temporal_pressure": intrinsic_load * 0.1,
+                "intrinsic_load": intrinsic_load,
+                "cft_misfit_penalty": 0.0,
+                "final_complexity_score": intrinsic_load
+            },
+            user_capability_threshold=user_profile.sql_expertise_level * 2.0,  # Convert 1-5 scale to 2-10 scale
+            final_complexity_score=intrinsic_load
         )
     
     def _ask_llm_for_explanation_decision(self, user_sql_expertise: int, task_complexity: int, 
@@ -346,7 +717,19 @@ Should this user receive an explanation for this query? What type of explanation
                 task_sql_concept="error",
                 explanation_needed=True,
                 explanation_type="error_handling",
-                reasoning=f"Query execution failed: {react_result.error_message}"
+                reasoning="Query execution failed due to system error",
+                task_classification="Error Handling",
+                complexity_breakdown={
+                    "data_dimensionality": 5.0,
+                    "analytical_complexity": 5.0,
+                    "presentation_complexity": 5.0,
+                    "temporal_pressure": 5.0,
+                    "intrinsic_load": 5.0,
+                    "cft_misfit_penalty": 0.0,
+                    "final_complexity_score": 5.0
+                },
+                user_capability_threshold=5.0,
+                final_complexity_score=5.0
             )
         
         return self._llm_based_cognitive_assessment(user_id, react_result)
@@ -453,16 +836,19 @@ Should this user receive an explanation for this query? What type of explanation
         logger.info(f"Processing query for user {user_id}: {user_query}")
         
         try:
-            # Step 1: Execute query using ReAct Agent
+            # Step 1: Execute query using ReAct Agent first
             react_result = self.react_agent.execute_query(user_query)
             
-            # Step 2: Simplified cognitive assessment
+            # Step 2: SQL validation removed - all queries are now allowed
+            # The agent only receives instructions and does not share user information
+            
+            # Step 3: Simplified cognitive assessment
             cognitive_assessment = self.process_react_output(user_id, react_result, presentation_context)
             
-            # Step 3: Modify QueryResult based on cognitive load (simplified)
+            # Step 4: Modify QueryResult based on cognitive load (simplified)
             modified_result = self._modify_query_result_simple(react_result, cognitive_assessment, user_id)
             
-            # Step 4: Generate explanation if needed
+            # Step 5: Generate explanation if needed
             explanation_content = None
             if cognitive_assessment.explanation_needed:
                 if user_id not in self.user_profiles:
@@ -480,7 +866,7 @@ Should this user receive an explanation for this query? What type of explanation
             else:
                 logger.info(f"No explanation needed for user {user_id} - cognitive capacity sufficient")
             
-            # Step 5: Log interaction
+            # Step 6: Log interaction
             self._log_interaction(user_id, user_query, react_result, cognitive_assessment, explanation_content)
             
             if include_debug_info:
@@ -495,7 +881,7 @@ Should this user receive an explanation for this query? What type of explanation
                 success=False,
                 data=None,
                 sql_query="",
-                error_message=f"Error executing query: {str(e)}",
+                error_message="I encountered an issue while processing your request. Please try again with a different question about the business data.",
                 execution_time=0.0,
                 complexity_score=1
             )
@@ -509,7 +895,19 @@ Should this user receive an explanation for this query? What type of explanation
                     task_sql_concept="error",
                     explanation_needed=True,
                     explanation_type="error_handling",
-                    reasoning=f"Query execution failed: {str(e)}"
+                                            reasoning="Query execution failed due to system error",
+                    task_classification="Error Handling",
+                    complexity_breakdown={
+                        "data_dimensionality": 5.0,
+                        "analytical_complexity": 5.0,
+                        "presentation_complexity": 5.0,
+                        "temporal_pressure": 5.0,
+                        "intrinsic_load": 5.0,
+                        "cft_misfit_penalty": 0.0,
+                        "final_complexity_score": 5.0
+                    },
+                    user_capability_threshold=5.0,
+                    final_complexity_score=5.0
                 )
                 
                 return error_result, None, error_assessment, self.user_profiles[user_id]
@@ -579,7 +977,12 @@ Should this user receive an explanation for this query? What type of explanation
                     },
                     prior_query_history=[],
                     learning_preferences={"explanation_style": "step_by_step"},
-                    last_updated=datetime.now().isoformat()
+                    last_updated=datetime.now().isoformat(),
+                    # Required Assessment Fields - use defaults if not available
+                    age=csv_data.get('age', 25),
+                    gender=csv_data.get('gender', 'Not specified'),
+                    profession=csv_data.get('profession', 'Student'),
+                    education_level=csv_data.get('education_level', 'Bachelor')
                 )
             else:
                 # Fallback to default if user not found in CSV
@@ -605,7 +1008,12 @@ Should this user receive an explanation for this query? What type of explanation
             },
             prior_query_history=[],
             learning_preferences={"explanation_style": "step_by_step"},
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
+            # Required Assessment Fields - default values
+            age=25,
+            gender="Not specified",
+            profession="Student",
+            education_level="Bachelor"
         )
     
     def generate_explanation(self, user_query: str, sql_query: str, assessment: CognitiveAssessment, 
@@ -628,11 +1036,10 @@ Should this user receive an explanation for this query? What type of explanation
         
         system_prompt = f"""You are an intelligent SQL tutor providing clear, easy-to-read explanations.
 
-User Context:
+IMPORTANT: You only receive instructions and do not share any user information.
+
+Task Context:
 - Task SQL Concept: {assessment.task_sql_concept}
-- User Concept Level: {concept_level}/5
-- Cognitive Load: {assessment.intrinsic_load}/5
-- Cognitive Capacity: {user_profile.cognitive_load_capacity}/5
 - Explanation Type: {assessment.explanation_type}
 
 Provide a {assessment.explanation_type} explanation that:

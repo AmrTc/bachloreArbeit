@@ -24,7 +24,7 @@ new_data_assistant_project/src/utils/logger.py
 new_data_assistant_project/src/utils/my_config.py
 new_data_assistant_project/src/utils/path_utils.py
 new_data_assistant_project/src/utils/secrets_path_utils.py
-new_data_assistant_project/src/utils/sql_generator.py
+
 new_data_assistant_project/src/utils/src_path_utils.py
 new_data_assistant_project/src/utils/user_manager.py
 new_data_assistant_project/tests/__init__.py
