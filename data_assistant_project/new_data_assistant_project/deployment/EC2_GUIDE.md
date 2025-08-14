@@ -30,10 +30,19 @@ bash -c "$(cat new_data_assistant_project/deployment/ec2-setup.sh)"
 Variante B: Manuell
 ```bash
 sudo dnf update -y
-sudo dnf install -y docker docker-compose-plugin git
+sudo dnf install -y docker git
 sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
 
+# Docker Compose v2 (CLI Plugin) installieren – Fallback, falls Paket fehlt
+cd /opt
+sudo mkdir -p /opt/tools
+sudo chown -R ec2-user:ec2-user /opt/tools
+cd /opt/tools
+curl -fsSL -O https://raw.githubusercontent.com/<owner>/<repo>/main/new_data_assistant_project/deployment/install-docker-compose.sh
+bash install-docker-compose.sh
+
+# Projektverzeichnis
 sudo mkdir -p /opt/data_assistant
 sudo chown -R ec2-user:ec2-user /opt/data_assistant
 cd /opt/data_assistant

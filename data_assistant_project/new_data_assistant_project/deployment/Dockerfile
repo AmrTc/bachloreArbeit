@@ -19,7 +19,6 @@ COPY src/ ./src/
 COPY data/ ./data/
 COPY evaluation/ ./evaluation/
 COPY __init__.py .
-COPY cleanup_users.py .
 
 # Streamlit-Config kopieren
 COPY .streamlit/ ./.streamlit/
