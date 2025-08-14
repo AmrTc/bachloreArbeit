@@ -1,26 +1,30 @@
 import os
 import sys
+from pathlib import Path
 
-# Ensure project root is on sys.path so absolute imports resolve
-PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+# Get the directory where this file is located
+CURRENT_DIR = Path(__file__).parent.absolute()
 
+# Add the current directory to Python path for relative imports
+if str(CURRENT_DIR) not in sys.path:
+    sys.path.insert(0, str(CURRENT_DIR))
 
 # Dependencies are installed from requirements.txt at the repo root in Streamlit Cloud.
 # Avoid runtime installation attempts here.
 
 try:
-    from new_data_assistant_project.frontend.app import main  # type: ignore
-except Exception as exc:
-    # Fallback: try relative import when package prefix is unavailable
-    try:
-        from frontend.app import main  # type: ignore
-    except Exception as inner_exc:
-        raise RuntimeError(
-            f"Could not import frontend.app: {exc} / {inner_exc}\n"
-            f"CWD={os.getcwd()} ROOT={PROJECT_ROOT}"
-        ) from inner_exc
+    # Simple relative import - most reliable for Streamlit Cloud
+    from frontend.app import main
+except ImportError as exc:
+    # If relative import fails, provide clear error message
+    raise RuntimeError(
+        f"Could not import frontend.app from {CURRENT_DIR}\n"
+        f"Current working directory: {os.getcwd()}\n"
+        f"Python path: {sys.path[:3]}...\n"
+        f"Available files in current dir: {list(CURRENT_DIR.iterdir())}\n"
+        f"Frontend dir exists: {(CURRENT_DIR / 'frontend').exists()}\n"
+        f"App.py exists: {(CURRENT_DIR / 'frontend' / 'app.py').exists()}"
+    ) from exc
 
 
 if __name__ == "__main__":
