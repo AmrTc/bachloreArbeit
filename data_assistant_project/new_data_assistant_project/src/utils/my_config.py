@@ -4,8 +4,6 @@ Configuration utilities for the Data Assistant project.
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
-from typing import Optional
 
 # Docker-compatible imports
 try:
@@ -19,56 +17,34 @@ class MyConfig:
     def __init__(self):
         """Initialize configuration.
 
-        Order of precedence for ANTHROPIC_API_KEY:
-        1) Streamlit secrets (recommended for Streamlit Cloud)
-        2) Environment variable
-        3) .env file (for local development)
+        This project must read the Anthropic API key exclusively from
+        Streamlit secrets (see docs). No fallback to environment or .env.
         """
 
-        # 1) Try Streamlit secrets if available
-        api_key: Optional[str] = None
+        api_key = None
         try:
             import streamlit as st  # type: ignore
 
-            # Support multiple layouts in secrets.toml
             if "ANTHROPIC_API_KEY" in st.secrets:
                 api_key = str(st.secrets["ANTHROPIC_API_KEY"])  # flat key
             elif "anthropic_api_key" in st.secrets:
-                api_key = str(st.secrets["anthropic_api_key"])  # alternative flat key
+                api_key = str(st.secrets["anthropic_api_key"])  # alt flat key
             elif "anthropic" in st.secrets and "api_key" in st.secrets["anthropic"]:
-                api_key = str(st.secrets["anthropic"]["api_key"])  # sectioned layout
-
-            if api_key:
-                # Mirror into environment for downstream libs that read os.getenv
-                os.environ.setdefault("ANTHROPIC_API_KEY", api_key)
+                api_key = str(st.secrets["anthropic"]["api_key"])  # sectioned
         except Exception:
-            # Streamlit not available or no secrets configured
+            # Streamlit not available → leave as None to trigger error later
             pass
 
-        # 2) If not found yet, check environment (could be set by orchestrator)
-        if not api_key:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-
-        # 3) Finally, try loading from .env for local development
-        if not api_key:
-            secrets_utils = SecretsPathUtils.get_instance()
-            env_path = secrets_utils.get_env_file_path()
-            if env_path.exists():
-                load_dotenv(str(env_path))
-                api_key = os.getenv("ANTHROPIC_API_KEY")
-
-        # Store resolved values
+        # Store
         self.api_key = api_key
         self.database_path = os.getenv("DATABASE_PATH", "src/database/superstore.db")
         
     def get_api_key(self) -> str:
         """Get the Anthropic API key."""
         if not self.api_key:
-            env_path = SecretsPathUtils.get_instance().get_env_file_path()
             raise ValueError(
                 "ANTHROPIC_API_KEY not configured.\n"
-                "Set it via Streamlit secrets (preferred) or environment variables.\n"
-                f"Checked .env file at: {env_path} (used only for local dev).\n"
+                "Set it in Streamlit secrets (see deploy docs).\n"
                 f"CWD: {Path.cwd()}"
             )
         return self.api_key
