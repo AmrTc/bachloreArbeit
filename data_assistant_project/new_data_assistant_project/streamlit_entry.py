@@ -34,7 +34,16 @@ def ensure_dependencies() -> None:
     try:
         subprocess.check_call(args)
     except Exception as exc:
-        raise RuntimeError(f"Failed to install dependencies: {' '.join(args)} -> {exc}") from exc
+        # Do not hard-fail in managed/read-only environments.
+        # Packages may already be present; we just warn and continue.
+        msg = f"Auto-install skipped/failed: {' '.join(args)} -> {exc}"
+        try:
+            import streamlit as st  # type: ignore
+
+            st.warning(msg)
+        except Exception:
+            sys.stderr.write(msg + "\n")
+        # Continue without raising; if deps are truly missing, import will fail later with a clearer error
 
 
 # Try to ensure deps before importing the app
