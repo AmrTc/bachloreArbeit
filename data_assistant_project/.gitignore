@@ -17,5 +17,8 @@ __pycache__/
 .env
 .env.*
 
+# Streamlit secrets (local development)
+.streamlit/secrets.toml
+
 # System files
 .DS_Store

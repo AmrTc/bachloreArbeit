@@ -17,11 +17,15 @@ class MyConfig:
     def __init__(self):
         """Initialize configuration.
 
-        This project must read the Anthropic API key exclusively from
-        Streamlit secrets (see docs). No fallback to environment or .env.
+        Priority order for API key:
+        1. Streamlit Cloud secrets (production)
+        2. Local .streamlit/secrets.toml (development)
+        3. Environment variables (fallback)
         """
 
         api_key = None
+        
+        # Try Streamlit Cloud secrets first
         try:
             import streamlit as st  # type: ignore
 
@@ -32,8 +36,30 @@ class MyConfig:
             elif "anthropic" in st.secrets and "api_key" in st.secrets["anthropic"]:
                 api_key = str(st.secrets["anthropic"]["api_key"])  # sectioned
         except Exception:
-            # Streamlit not available → leave as None to trigger error later
+            # Streamlit not available → try local secrets.toml
             pass
+        
+        # If no API key from Streamlit, try local secrets.toml
+        if not api_key:
+            try:
+                import toml
+                secrets_path = Path(__file__).parent.parent.parent / ".streamlit" / "secrets.toml"
+                
+                if secrets_path.exists():
+                    with open(secrets_path, "r") as f:
+                        secrets = toml.load(f)
+                    
+                    if "ANTHROPIC_API_KEY" in secrets:
+                        api_key = str(secrets["ANTHROPIC_API_KEY"])
+                    elif "anthropic" in secrets and "api_key" in secrets["anthropic"]:
+                        api_key = str(secrets["anthropic"]["api_key"])
+            except Exception:
+                # Local secrets not available → try environment
+                pass
+        
+        # Last resort: try environment variables
+        if not api_key:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
 
         # Store
         self.api_key = api_key
@@ -44,7 +70,10 @@ class MyConfig:
         if not self.api_key:
             raise ValueError(
                 "ANTHROPIC_API_KEY not configured.\n"
-                "Set it in Streamlit secrets (see deploy docs).\n"
+                "Set it in one of these locations:\n"
+                "1. Streamlit Cloud secrets (production)\n"
+                "2. .streamlit/secrets.toml (local development)\n"
+                "3. ANTHROPIC_API_KEY environment variable\n"
                 f"CWD: {Path.cwd()}"
             )
         return self.api_key
