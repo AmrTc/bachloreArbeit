@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
-# Python-Dependencies installieren
-COPY requirements-production.txt .
+# Python-Dependencies installieren (Quelle liegt unter deployment/, Build-Kontext ist Projek root)
+COPY deployment/requirements-production.txt ./requirements-production.txt
 RUN pip install --no-cache-dir -r requirements-production.txt
 
 # Anwendungscode kopieren (alle relevanten Verzeichnisse)
