@@ -168,11 +168,15 @@ def render_task_page(user: User):
     ## Your Mission: Strategic Data Analysis
     
     You are a business analyst at GlobalMart, a retail chain preparing for a major market entry in 2026.
+    After successful US expansion (2014-2017), GlobalMart plans to enter new markets in 2026.
     Your task is to analyze comprehensive retail data to develop strategic insights for our expansion.
+    On the left sidebar you will find the tasks you need to complete. You can complete the task in any Order, 
+    but you need to complete all tasks. After you have completed all tasks, you can proceed to the feedback phase.
+
+    **Important:**
+    If you mark a task as completed, you can't change it.
     
     **Duration:** 20 minutes
-    
-    **Business Context:** After successful US expansion (2014-2017), GlobalMart plans to enter new markets in 2026.
     
     ---
     """)
@@ -272,6 +276,7 @@ def render_task_page(user: User):
         metrics = tracker.get_accuracy_metrics(user.id)
         
         col1, col2 = st.columns(2)
+        
         with col1:
             st.metric("Total Predictions", metrics['total_predictions'])
             st.metric("Accuracy", f"{metrics['accuracy']:.1%}")
@@ -283,80 +288,18 @@ def render_task_page(user: User):
         st.markdown(f"**F1 Score**: {metrics['f1_score']:.1%}")
         '''
     # Main chat interface
-    st.markdown("### 💬 Data Analysis Assistant")
-    
+    #st.markdown("### 💬 Data Analysis Assistant")
+    '''
     # Display user profile summary
     col1, col2 = st.columns(2)
+    
     with col1:
         st.metric("Your Level", user.user_level_category)
+    
     with col2:
         st.metric("Total Score", f"{user.total_assessment_score}/20")
+    '''
     
-    # Current task display with example query and completion
-    if 'current_task' in st.session_state:
-        task = st.session_state.current_task
-        
-        # Task header
-        st.markdown(f"### 📋 **Current Task:** {task['title']}")
-        st.markdown(f"**Prompt:** {task['prompt']}")
-        
-        # Example query box with copy functionality
-        st.markdown("---")
-        st.markdown("### 💡 **Example Query**")
-        
-        # Create a copyable text box
-        example_query = task['prompt']
-        
-        # Use columns to create a nice layout
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            # Create a styled text box that looks like it can be copied
-            st.markdown(f"""
-            <div style="
-                background-color: #f0f2f6; 
-                border: 1px solid #ccc; 
-                border-radius: 5px; 
-                padding: 15px; 
-                font-family: monospace; 
-                font-size: 14px;
-                color: #333;
-                margin: 10px 0;
-            ">
-                {example_query}
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            # Copy button
-            if st.button("📋 Copy Query", key=f"copy_{task['id']}"):
-                st.write("Query copied to clipboard!")
-                # Note: Streamlit doesn't have native clipboard support, but this gives user feedback
-        
-        # Task completion section
-        st.markdown("---")
-        st.markdown("### ✅ **Task Completion**")
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.markdown("**Instructions:**")
-            st.markdown("""
-            1. Copy the example query above
-            2. Paste it into the chat interface below
-            3. Review the results
-            4. Click 'Mark as Completed' when done
-            """)
-        
-        with col2:
-            if st.button("🎯 Mark as Completed", key=f"complete_{task['id']}", type="primary"):
-                # Mark task as completed
-                st.session_state.completed_tasks.add(task['id'])
-                del st.session_state.current_task
-                st.success(f"✅ Task '{task['title']}' completed!")
-                st.rerun()
-        
-        st.markdown("---")
     
     # Chat interface
     chat_manager.render_chat_interface(user)
@@ -444,34 +387,90 @@ def render_task_page(user: User):
                     del st.session_state.last_explanation_given
                     st.rerun()
         
-        with col2:
-            st.markdown("**It is necessary fo the survey to answer the following questions**")
-            st.markdown("""
-            - **Yes**: The explanation was helpful or would have been helpful
-            - **No**: The explanation wasn't helpful or wasn't needed
-            - **Somewhat/Maybe**: Partial usefulness or uncertainty
-            """)
-    
+        st.markdown("**It is necessary fo the survey to answer the following questions**")
+        st.markdown("""
+        - **Yes**: The explanation was helpful or would have been helpful
+        - **No**: The explanation wasn't helpful or wasn't needed
+        - **Somewhat/Maybe**: Partial usefulness or uncertainty
+        """)
+    # Current task display with example query and completion
+    if 'current_task' in st.session_state:
+        task = st.session_state.current_task
+        
+        # Task header
+        st.markdown(f"### 📋 **Current Task:** {task['title']}")
+        st.markdown(f"copy this **Prompt:** {task['prompt']}")
+        '''
+        # Example query box with copy functionality
+        st.markdown("---")
+        st.markdown("### 💡 **Example Query**")
+        
+        # Create a copyable text box
+        example_query = task['prompt']
+        
+        # Create a styled text box that looks like it can be copied
+        st.markdown(f"""
+        <div style="
+            background-color: #f0f2f6; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            padding: 15px; 
+            font-family: monospace; 
+            font-size: 14px;
+            color: #333;
+            margin: 10px 0;
+        ">
+            {example_query}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Copy button
+        if st.button("📋 Copy Query", key=f"copy_{task['id']}"):
+            st.write("Query copied to clipboard!")
+            # Note: Streamlit doesn't have native clipboard support, but this gives user feedback
+        '''
+        # Task completion section
+        st.markdown("---")
+        st.markdown("### ✅ **Task Completion**")
+        
+        st.markdown("**Instructions:**")
+        st.markdown("""
+        1. Copy the example query above
+        2. Paste it into the chat interface below
+        3. Review the results
+        4. Click 'Mark as Completed' when done
+        """)
+        
+        if st.button("🎯 Mark as Completed", key=f"complete_{task['id']}", type="primary"):
+            # Mark task as completed
+            st.session_state.completed_tasks.add(task['id'])
+            del st.session_state.current_task
+            st.success(f"✅ Task '{task['title']}' completed!")
+            st.rerun()
+        
+        #st.markdown("---")
+
     # Navigation
     st.markdown("---")
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("🏠 Welcome"):
+        if st.button("Welcome"):
             st.session_state.current_page = "welcome"
             st.rerun()
     
     with col2:
-        if st.button("📊 Assessment"):
+        if st.button("Assessment"):
             st.session_state.current_page = "assessment"
             st.rerun()
     
     with col3:
-        if st.button("💼 Task Phase", disabled=True):
+        if st.button("Task Phase", disabled=True):
             st.session_state.current_page = "task"
             st.rerun()
     
     with col4:
-        if st.button("📝 Feedback", disabled=not st.session_state.get('tasks_completed', False)):
+        if st.button("Feedback", disabled=not st.session_state.get('tasks_completed', False)):
             st.session_state.current_page = "feedback"
             st.rerun() 

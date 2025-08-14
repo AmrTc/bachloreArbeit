@@ -157,7 +157,7 @@ class AuthManager:
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("📝 Register New Account"):
+            if st.button("Register New Account"):
                 st.session_state.show_registration = True
                 st.rerun()
     

@@ -284,24 +284,25 @@ def render_feedback_page(user: User):
     
     # Navigation
     st.markdown("---")
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("🏠 Welcome"):
+        if st.button("Welcome"):
             st.session_state.current_page = "welcome"
             st.rerun()
     
     with col2:
-        if st.button("📊 Assessment"):
+        if st.button("Assessment"):
             st.session_state.current_page = "assessment"
             st.rerun()
     
     with col3:
-        if st.button("💼 Task Phase"):
+        if st.button("Task Phase"):
             st.session_state.current_page = "task"
             st.rerun()
     
     with col4:
-        if st.button("📝 Feedback", disabled=True):
+        if st.button("Feedback", disabled=True):
             st.session_state.current_page = "feedback"
             st.rerun() 

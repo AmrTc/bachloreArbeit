@@ -1,8 +1,8 @@
 services:
   streamlit-app:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deployment/Dockerfile
     ports:
       - "8501:8501"
     environment:
@@ -10,8 +10,8 @@ services:
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
       - ENVIRONMENT=production
     volumes:
-      - ./src/database:/app/src/database
-      - ./.streamlit:/home/appuser/.streamlit
+      - ../src/database:/app/src/database
+      - ../.streamlit:/app/.streamlit
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]

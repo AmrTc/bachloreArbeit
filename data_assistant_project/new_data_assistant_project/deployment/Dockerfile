@@ -13,11 +13,16 @@ WORKDIR /app
 COPY requirements-production.txt .
 RUN pip install --no-cache-dir -r requirements-production.txt
 
-# Anwendungscode kopieren
-COPY . .
+# Anwendungscode kopieren (alle relevanten Verzeichnisse)
+COPY frontend/ ./frontend/
+COPY src/ ./src/
+COPY data/ ./data/
+COPY evaluation/ ./evaluation/
+COPY __init__.py .
+COPY cleanup_users.py .
 
 # Streamlit-Config kopieren
-COPY .streamlit /home/appuser/.streamlit
+COPY .streamlit/ ./.streamlit/
 
 # Benutzer erstellen (nicht als root laufen)
 RUN useradd -m -u 1000 appuser && \

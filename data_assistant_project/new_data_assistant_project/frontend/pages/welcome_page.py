@@ -59,17 +59,17 @@ logger = logging.getLogger(__name__)
 
 def render_welcome_page(user: User):
     """Render the welcome page with study context and navigation."""
-    st.title("🌍 GlobalMart 2026 Market Entry Study")
+    st.title("INTELLIGENT EXPLANATION IN LLM BASED DATA ASSISTANTS")
     st.markdown("""
-    Welcome to the research study on intelligent explainable data assistance.
+    Welcome to the "research study" on intelligent explainable data assistance.
     Your mission is to analyze business data and help evaluate the assistant's capabilities.
-    """)
-    
-    st.markdown("### 🧠 Research Context")
-    st.markdown("""
-    - We are evaluating how well the system predicts when users need explanations
-    - Your feedback helps us assess explanation quality and necessity
-    - The study has three phases: Assessment, Task, and Feedback
+    The study has three phases: Assessment, Task, and Feedback. It is important that you complete 
+    all three phases. 
+    During the case study, it is important to adhere to the task descriptions. 
+    The case study should ideally not be interrupted and should be completed in one session.
+
+    **Important:**
+    Don't use the page-navigation buttons on the left sidebar. Use the buttons on the bottom of the page.
     """)
     
     st.markdown("### ✅ Consent")
@@ -89,16 +89,16 @@ def render_welcome_page(user: User):
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("📊 Start Assessment Phase", type="primary", disabled=not consent_given):
+        if st.button("Start Assessment Phase", type="primary", disabled=not consent_given):
             st.session_state.current_page = "assessment"
             st.rerun()
     
     with col2:
-        if st.button("💼 Skip to Task Phase", disabled=not consent_given):
+        if st.button("Skip to Task Phase", disabled=not consent_given):
             st.session_state.current_page = "task"
             st.rerun()
     
-    st.info("💡 **Tip:** You can complete the assessment at any time to get personalized explanations.")
+    st.info("💡 **Info:** If you completed the assessment, you can skip to the task phase.")
     
     # Study progress indicator
     if user.has_completed_assessment:
@@ -117,24 +117,25 @@ def render_welcome_page(user: User):
     
     # Navigation
     st.markdown("---")
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("🏠 Welcome", disabled=True):
+        if st.button("Welcome", disabled=True):
             st.session_state.current_page = "welcome"
             st.rerun()
     
     with col2:
-        if st.button("📊 Assessment", disabled=not user.has_completed_assessment):
+        if st.button("Assessment", disabled=not user.has_completed_assessment):
             st.session_state.current_page = "assessment"
             st.rerun()
     
     with col3:
-        if st.button("🧪 Task Phase", disabled=not user.has_completed_assessment):
+        if st.button("Task Phase", disabled=not user.has_completed_assessment):
             st.session_state.current_page = "task"
             st.rerun()
     
     with col4:
-        if st.button("📝 Feedback", disabled=not user.has_completed_assessment or not st.session_state.get('tasks_completed', False)):
+        if st.button("Feedback", disabled=not user.has_completed_assessment or not st.session_state.get('tasks_completed', False)):
             st.session_state.current_page = "feedback"
             st.rerun() 
