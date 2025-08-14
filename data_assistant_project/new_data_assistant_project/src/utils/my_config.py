@@ -20,7 +20,6 @@ class MyConfig:
         Priority order for API key:
         1. Streamlit Cloud secrets (production)
         2. Local .streamlit/secrets.toml (development)
-        3. Environment variables (fallback)
         """
 
         api_key = None
@@ -54,12 +53,8 @@ class MyConfig:
                     elif "anthropic" in secrets and "api_key" in secrets["anthropic"]:
                         api_key = str(secrets["anthropic"]["api_key"])
             except Exception:
-                # Local secrets not available → try environment
+                # Local secrets not available
                 pass
-        
-        # Last resort: try environment variables
-        if not api_key:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
 
         # Store
         self.api_key = api_key
@@ -73,7 +68,6 @@ class MyConfig:
                 "Set it in one of these locations:\n"
                 "1. Streamlit Cloud secrets (production)\n"
                 "2. .streamlit/secrets.toml (local development)\n"
-                "3. ANTHROPIC_API_KEY environment variable\n"
                 f"CWD: {Path.cwd()}"
             )
         return self.api_key
@@ -98,13 +92,11 @@ if __name__ == "__main__":
         print("\nDatabase Path Test:")
         print(f"Database path: {db_path}")
         
-        # Test .env file location
-        secrets_utils = SecretsPathUtils.get_instance()
-        env_path = secrets_utils.get_env_file_path()
-        
-        print("\nEnvironment File Test:")
-        print(f".env file location: {env_path}")
-        print(f".env file exists: {'Yes' if env_path.exists() else 'No'}")
+        # Test local secrets.toml
+        secrets_path = Path(__file__).parent.parent.parent / ".streamlit" / "secrets.toml"
+        print("\nLocal Secrets Test:")
+        print(f"secrets.toml location: {secrets_path}")
+        print(f"secrets.toml exists: {'Yes' if secrets_path.exists() else 'No'}")
         
     except Exception as e:
         print(f"\nError occurred: {str(e)}")
