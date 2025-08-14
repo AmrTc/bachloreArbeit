@@ -1,0 +1,4 @@
+# Root requirements for Streamlit Cloud / Codespaces
+# Install production deps and the package itself
+-r new_data_assistant_project/deployment/requirements-production.txt
+-e .
