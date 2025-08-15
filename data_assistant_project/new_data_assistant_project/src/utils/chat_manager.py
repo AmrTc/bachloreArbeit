@@ -354,7 +354,6 @@ class ChatManager:
                 st.markdown("---")
         
         # New message input
-        st.markdown("### 💬 Ask a Question")
         with st.form("chat_form", clear_on_submit=True):
             user_input = st.text_area(
                 "Type your question about the data:",
@@ -387,15 +386,4 @@ class ChatManager:
                 # Set flag to skip loading history on next render
                 st.session_state[f'skip_load_history_user_{user.id}'] = True
                 st.success("Chat history cleared!")
-                st.rerun()
-        
-        # Usage tips
-        with st.expander("💡 Usage Tips"):
-            st.markdown("""
-            **Example Questions:**
-            - "Show me total sales by region"
-            - "What are the top 10 products by profit?"
-            - "Compare sales between different customer segments"
-            - "Find all orders with discounts greater than 20%"
-            - "What's the average order value by category?"
-            """) 
+                st.rerun() 
