@@ -86,18 +86,14 @@ class MyConfig:
             # Import the Secret Manager client library
             from google.cloud import secretmanager
             
-            # Get project ID from environment or default
-            project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "impactful-study-469120-m5")
-            secret_id = "anthropic-api-key"
+            # Use the specific resource name for this project
+            resource_name = "projects/315388300473/secrets/anthropic-api-key"
             
             # Create the Secret Manager client
             client = secretmanager.SecretManagerServiceClient()
             
-            # Build the resource name of the secret
-            name = client.secret_path(project_id, secret_id)
-            
             # Access the secret version (latest)
-            response = client.access_secret_version(request={"name": f"{name}/versions/latest"})
+            response = client.access_secret_version(request={"name": f"{resource_name}/versions/latest"})
             
             # Return the secret payload
             return response.payload.data.decode("UTF-8")
@@ -160,7 +156,7 @@ if __name__ == "__main__":
         
         # Test environment variables
         print("\nEnvironment Variables Test:")
-        print(f"GOOGLE_CLOUD_PROJECT_ID: {os.getenv('GOOGLE_CLOUD_PROJECT_ID', 'Not set')}")
+        print(f"Secret Manager Resource: projects/315388300473/secrets/anthropic-api-key")
         print(f"DATABASE_PATH: {os.getenv('DATABASE_PATH', 'Not set')}")
         
     except Exception as e:
