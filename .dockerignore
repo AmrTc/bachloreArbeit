@@ -57,5 +57,6 @@ docker-compose*
 cloudbuild.yaml
 cloudbuild.secrets.yaml
 
-# Exclude everything except the data_assistant_project
-!data_assistant_project/
+# Include only necessary files for the build
+!data_assistant_project/new_data_assistant_project/
+!requirements.txt
