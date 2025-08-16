@@ -1,0 +1,61 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Secrets (never include in Docker)
+.secrets/
+secrets/
+*.toml
+.env
+
+# Documentation
+Docs/
+README.md
+*.md
+
+# Tests
+tests/
+test_*
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Cloud build
+cloudbuild.yaml
+cloudbuild.secrets.yaml
+
+# Exclude everything except the data_assistant_project
+!data_assistant_project/
