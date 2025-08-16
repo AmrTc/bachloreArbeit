@@ -1,7 +1,7 @@
 steps:
-  # Build the Docker image from the data_assistant_project/new_data_assistant_project directory
+  # Build the Docker image using root Dockerfile
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/data-assistant:$COMMIT_SHA', '-f', 'data_assistant_project/new_data_assistant_project/Dockerfile', '.']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/data-assistant:$COMMIT_SHA', '-f', 'Dockerfile', '.']
     
   # Push the Docker image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'

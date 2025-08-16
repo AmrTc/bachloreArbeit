@@ -60,3 +60,4 @@ cloudbuild.secrets.yaml
 # Include only necessary files for the build
 !data_assistant_project/new_data_assistant_project/
 !requirements.txt
+!Dockerfile*
