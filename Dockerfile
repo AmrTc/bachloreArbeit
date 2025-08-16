@@ -40,5 +40,5 @@ EXPOSE 8080
 # Health check
 HEALTHCHECK CMD curl --fail http://localhost:8080/_stcore/health
 
-# Run the application
-CMD ["streamlit", "run", "streamlit_entry.py", "--server.port=8080", "--server.address=0.0.0.0"]
+# Run the application from the frontend directory
+CMD ["streamlit", "run", "frontend/app.py", "--server.port=8080", "--server.address=0.0.0.0"]
