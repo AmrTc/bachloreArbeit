@@ -199,7 +199,7 @@ def render_task_page(user: User):
             {
                 "id": 1,
                 "title": "Basic Sales Overview",
-                "prompt": "Show me the 5 most sold products"
+                "prompt": "show me the sales by region"
             },
             {
                 "id": 2,
