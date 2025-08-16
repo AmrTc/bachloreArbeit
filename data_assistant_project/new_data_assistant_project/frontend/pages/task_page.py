@@ -199,7 +199,7 @@ def render_task_page(user: User):
             {
                 "id": 1,
                 "title": "Basic Sales Overview",
-                "prompt": "show me the sales by region"
+                "prompt": "What is the total sales amount for each region?"
             },
             {
                 "id": 2,

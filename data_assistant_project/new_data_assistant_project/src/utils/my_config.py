@@ -18,21 +18,32 @@ class MyConfig:
         """Initialize configuration.
 
         Priority order for API key:
-        1. Google Secret Manager (production - Cloud Run)
-        2. Streamlit Cloud secrets (production - Streamlit Cloud)
-        3. Local .streamlit/secrets.toml (development)
+        1. GitHub Repository Secrets (CI/CD, Codespaces)
+        2. Google Secret Manager (production - Cloud Run)
+        3. Streamlit Cloud secrets (production - Streamlit Cloud)
+        4. Local .streamlit/secrets.toml (development)
         """
 
         api_key = None
         
-        # Try Google Secret Manager first (production - Cloud Run)
+        # Try GitHub Repository Secrets first (CI/CD, Codespaces)
         try:
-            api_key = self._get_secret_from_secret_manager()
+            api_key = self._get_secret_from_github()
             if api_key:
-                print("✅ API Key loaded from Google Secret Manager")
+                print("✅ API Key loaded from GitHub Repository Secrets")
         except Exception as e:
-            print(f"⚠️ Google Secret Manager not available: {e}")
+            print(f"⚠️ GitHub Secrets not available: {e}")
             # Continue to next method
+        
+        # If no API key from GitHub, try Google Secret Manager
+        if not api_key:
+            try:
+                api_key = self._get_secret_from_secret_manager()
+                if api_key:
+                    print("✅ API Key loaded from Google Secret Manager")
+            except Exception as e:
+                print(f"⚠️ Google Secret Manager not available: {e}")
+                # Continue to next method
         
         # If no API key from Secret Manager, try Streamlit Cloud secrets
         if not api_key:
@@ -77,6 +88,33 @@ class MyConfig:
         self.api_key = api_key
         self.database_path = os.getenv("DATABASE_PATH", "src/database/superstore.db")
         
+    def _get_secret_from_github(self) -> str:
+        """
+        Get the Anthropic API key from GitHub Repository Secrets.
+        This is the preferred method for CI/CD, Codespaces, and local development.
+        """
+        try:
+            # Check for GitHub Secrets environment variable
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if api_key:
+                return api_key
+            
+            # Check for other common environment variable names
+            api_key = os.getenv("GITHUB_ANTHROPIC_API_KEY")
+            if api_key:
+                return api_key
+                
+            # Check for Codespaces specific environment variable
+            api_key = os.getenv("CODESPACES_ANTHROPIC_API_KEY")
+            if api_key:
+                return api_key
+                
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ Error accessing GitHub Secrets: {e}")
+            return None
+        
     def _get_secret_from_secret_manager(self) -> str:
         """
         Get the Anthropic API key from Google Secret Manager.
@@ -111,9 +149,10 @@ class MyConfig:
             raise ValueError(
                 "ANTHROPIC_API_KEY not configured.\n"
                 "Set it in one of these locations:\n"
-                "1. Google Secret Manager (production - Cloud Run)\n"
-                "2. Streamlit Cloud secrets (production - Streamlit Cloud)\n"
-                "3. .streamlit/secrets.toml (local development)\n"
+                "1. GitHub Repository Secrets (CI/CD, Codespaces)\n"
+                "2. Google Secret Manager (production - Cloud Run)\n"
+                "3. Streamlit Cloud secrets (production - Streamlit Cloud)\n"
+                "4. .streamlit/secrets.toml (local development)\n"
                 f"CWD: {Path.cwd()}"
             )
         return self.api_key
@@ -132,6 +171,16 @@ if __name__ == "__main__":
         print("\nAPI Key Test:")
         print(f"API Key loaded successfully: {'Yes' if api_key else 'No'}")
         print(f"API Key value: {api_key[:8]}..." if api_key else "No API key found")
+        
+        # Test GitHub Secrets access
+        print("\nGitHub Secrets Test:")
+        try:
+            github_key = config._get_secret_from_github()
+            print(f"GitHub Secrets accessible: {'Yes' if github_key else 'No'}")
+            if github_key:
+                print(f"GitHub Secret value: {github_key[:8]}...")
+        except Exception as e:
+            print(f"GitHub Secrets error: {e}")
         
         # Test Secret Manager access
         print("\nSecret Manager Test:")
@@ -156,6 +205,9 @@ if __name__ == "__main__":
         
         # Test environment variables
         print("\nEnvironment Variables Test:")
+        print(f"ANTHROPIC_API_KEY: {'Set' if os.getenv('ANTHROPIC_API_KEY') else 'Not set'}")
+        print(f"GITHUB_ANTHROPIC_API_KEY: {'Set' if os.getenv('GITHUB_ANTHROPIC_API_KEY') else 'Not set'}")
+        print(f"CODESPACES_ANTHROPIC_API_KEY: {'Set' if os.getenv('CODESPACES_ANTHROPIC_API_KEY') else 'Not set'}")
         print(f"Secret Manager Resource: projects/315388300473/secrets/anthropic-api-key")
         print(f"DATABASE_PATH: {os.getenv('DATABASE_PATH', 'Not set')}")
         

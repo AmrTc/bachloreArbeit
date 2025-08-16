@@ -204,7 +204,7 @@ def render_admin_interface():
         user = auth_manager.get_current_user()
         render_welcome_page(user)
     
-    elif page == "📊 Assessment":
+    elif st.session_state.current_page == "assessment":
         try:
             from new_data_assistant_project.frontend.pages.assessment_page import render_assessment_page
         except ImportError:
@@ -220,7 +220,7 @@ def render_admin_interface():
         user = auth_manager.get_current_user()
         render_assessment_page(user)
     
-    elif page == "💼 Task Phase":
+    elif st.session_state.current_page == "task":
         try:
             from new_data_assistant_project.frontend.pages.task_page import render_task_page
         except ImportError:
@@ -236,7 +236,7 @@ def render_admin_interface():
         user = auth_manager.get_current_user()
         render_task_page(user)
     
-    elif page == "🤖 Data Assistant":
+    elif st.session_state.current_page == "chat":
         user = auth_manager.get_current_user()
         chat_manager.render_chat_interface(user)
     

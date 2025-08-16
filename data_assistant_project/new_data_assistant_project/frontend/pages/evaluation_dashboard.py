@@ -89,120 +89,18 @@ def render_evaluation_dashboard():
         return
     
     # Dashboard tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📈 Overview", 
+    tab1, tab2 = st.tabs([
         "👥 User Analytics", 
-        "💬 Feedback Analysis", 
-        "📊 System Metrics"
+        "💬 Feedback Analysis"
     ])
     
     with tab1:
-        render_overview_tab()
-        
-    with tab2:
         render_user_analytics_tab()
         
-    with tab3:
+    with tab2:
         render_feedback_analysis_tab()
-        
-    with tab4:
-        render_system_metrics_tab()
 
-def render_overview_tab():
-    """Render the overview tab with key metrics."""
-    st.subheader("🎯 Key Performance Indicators")
-    
-    # Create metrics in columns
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Get real user data for metrics
-    auth_manager = AuthManager()
-    db_path = getattr(auth_manager, 'db_path', 'src/database/superstore.db')
-    
-    try:
-        users = User.get_all_users(db_path)
-        total_users = len(users) if users else 0
-        
-        # Calculate age statistics
-        ages = [user.age for user in users if user.age is not None]
-        avg_age = round(sum(ages) / len(ages), 1) if ages else 0
-        min_age = min(ages) if ages else 0
-        max_age = max(ages) if ages else 0
-        
-        with col1:
-            st.metric(
-                label="Total Users",
-                value=total_users,
-                delta="5 this week"
-            )
-        
-        with col2:
-            st.metric(
-                label="Average Age",
-                value=f"{avg_age} years",
-                delta=f"Range: {min_age}-{max_age}"
-            )
-        
-        with col3:
-            st.metric(
-                label="Chat Sessions",
-                value="156",
-                delta="23 today"
-            )
-        
-        with col4:
-            st.metric(
-                label="System Uptime",
-                value="99.8%",
-                delta="0.1%"
-            )
-    except Exception as e:
-        # Fallback to sample data if there's an error
-    with col1:
-        st.metric(
-            label="Total Users",
-            value="42",
-            delta="5 this week"
-        )
-    
-    with col2:
-            st.metric(
-                label="Average Age",
-                value="25 years",
-                delta="Range: 18-45"
-            )
-        
-        with col3:
-        st.metric(
-            label="Chat Sessions",
-            value="156",
-            delta="23 today"
-        )
-    
-    with col4:
-        st.metric(
-            label="System Uptime",
-            value="99.8%",
-            delta="0.1%"
-        )
-    
-    # Activity chart
-    st.subheader("📈 Activity Trends")
-    
-    # Generate sample data
-    dates = pd.date_range(start='2024-01-01', end='2024-01-31', freq='D')
-    activity_data = pd.DataFrame({
-        'Date': dates,
-        'Sessions': [15, 23, 18, 31, 25, 19, 28] * 4 + [20, 25, 22]
-    })
-    
-    fig = px.line(
-        activity_data, 
-        x='Date', 
-        y='Sessions',
-        title='Daily Chat Sessions'
-    )
-    st.plotly_chart(fig, use_container_width=True)
+
 
 def render_user_analytics_tab():
     """Render user analytics and behavior patterns."""
@@ -429,7 +327,7 @@ def render_feedback_analysis_tab():
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Total Feedback", len(feedback_data))
-    with col2:
+            with col2:
                 explanations_given = sum(1 for fb in feedback_data if fb.explanation_given)
                 st.metric("Explanations Given", explanations_given)
             with col3:
@@ -522,69 +420,7 @@ def render_feedback_analysis_tab():
     else:
         st.warning("ComprehensiveFeedback model not available.")
 
-def render_system_metrics_tab():
-    """Render system performance and technical metrics."""
-    st.subheader("🔧 System Performance Metrics")
-    
-    # System health indicators
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Response Time", "1.2s", "-0.3s")
-    
-    with col2:
-        st.metric("Error Rate", "0.8%", "-0.2%")
-    
-    with col3:
-        st.metric("CPU Usage", "45%", "5%")
-    
-    with col4:
-        st.metric("Memory Usage", "62%", "3%")
-    
-    # Performance trends
-    st.subheader("📈 Performance Trends")
-    
-    perf_data = pd.DataFrame({
-        'Time': pd.date_range(start='2024-01-15 00:00', periods=24, freq='H'),
-        'Response Time (ms)': [1200, 1150, 1300, 1100, 1250, 1180, 1220] * 3 + [1190, 1160, 1140],
-        'CPU Usage (%)': [45, 42, 48, 40, 46, 44, 47] * 3 + [43, 41, 39],
-        'Memory Usage (%)': [62, 60, 65, 58, 63, 61, 64] * 3 + [59, 57, 55]
-    })
-    
-    # Response time chart
-    fig = px.line(
-        perf_data, 
-        x='Time', 
-        y='Response Time (ms)',
-        title='System Response Time (24h)'
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Resource usage
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        fig = px.line(perf_data, x='Time', y='CPU Usage (%)', title='CPU Usage')
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        fig = px.line(perf_data, x='Time', y='Memory Usage (%)', title='Memory Usage')
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # System logs (sample)
-    st.subheader("📝 Recent System Events")
-    
-    logs = pd.DataFrame({
-        'Timestamp': ['2024-01-15 14:30:00', '2024-01-15 14:25:00', '2024-01-15 14:20:00'],
-        'Level': ['INFO', 'WARNING', 'INFO'],
-        'Message': [
-            'User login successful',
-            'High memory usage detected',
-            'Database backup completed'
-        ]
-    })
-    
-    st.dataframe(logs, use_container_width=True)
+
 
 if __name__ == "__main__":
     render_evaluation_dashboard() 
