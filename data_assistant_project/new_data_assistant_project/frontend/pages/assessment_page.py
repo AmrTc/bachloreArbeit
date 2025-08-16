@@ -83,6 +83,7 @@ def render_assessment_page(user: User):
     # Assessment steps
     steps = [
         "user_demographics",  # New step for user information
+        "sql_expertise",      # New step for SQL expertise assessment
         "data_analysis_fundamentals", 
         "business_analytics",
         "forecasting_statistics",
@@ -152,8 +153,61 @@ def render_assessment_page(user: User):
             st.session_state.assessment_step += 1
             st.rerun()
 
-    # General user Information
-    
+    # SQL Expertise Assessment
+    elif current_step == "sql_expertise":
+        st.markdown("### 💻 SQL Expertise Assessment")
+        st.markdown("Please rate your SQL knowledge and experience level.")
+        
+        # Self-assessment rating
+        sql_self_rating = st.slider(
+            "Rate your SQL expertise level (1-5):",
+            min_value=1,
+            max_value=5,
+            value=st.session_state.assessment_scores.get('sql_expertise_rating', 3),
+            help="1 = No SQL experience, 5 = Expert level"
+        )
+        
+        # SQL concept familiarity
+        sql_concept_1 = st.radio(
+            "Are you familiar with basic SELECT statements and WHERE clauses?",
+            ["Yes", "Somewhat", "No"],
+            key="sql_concept_1"
+        )
+        
+        sql_concept_2 = st.radio(
+            "Do you know how to use JOINs and GROUP BY clauses?",
+            ["Yes", "Somewhat", "No"],
+            key="sql_concept_2"
+        )
+        
+        sql_concept_3 = st.radio(
+            "Have you worked with subqueries or advanced SQL functions?",
+            ["Yes", "Somewhat", "No"],
+            key="sql_concept_3"
+        )
+        
+        # Calculate SQL expertise score
+        sql_score = 0
+        if sql_self_rating >= 4:
+            sql_score = 4
+        elif sql_self_rating == 3:
+            sql_score = 2
+        else:
+            sql_score = 1
+        
+        # Adjust based on concept familiarity
+        if sql_concept_1 == "Yes" and sql_concept_2 == "Yes" and sql_concept_3 == "Yes":
+            sql_score = min(5, sql_score + 1)
+        elif sql_concept_1 == "No" or sql_concept_2 == "No":
+            sql_score = max(0, sql_score - 1)
+        
+        st.session_state.assessment_scores['sql_expertise'] = sql_score
+        st.session_state.assessment_scores['sql_expertise_rating'] = sql_self_rating
+        
+        if st.button("Continue", type="primary"):
+            st.session_state.assessment_step += 1
+            st.rerun()
+
     # Data Analysis Fundamentals
     if current_step == "data_analysis_fundamentals":
         st.markdown("### 📈 Data Analysis Fundamentals")
@@ -399,6 +453,7 @@ def render_assessment_page(user: User):
         
         # Calculate total score
         total_score = sum([
+            st.session_state.assessment_scores.get('sql_expertise', 0),
             st.session_state.assessment_scores.get('data_analysis_fundamentals', 0),
             st.session_state.assessment_scores.get('business_analytics', 0),
             st.session_state.assessment_scores.get('forecasting_statistics', 0),
@@ -407,19 +462,19 @@ def render_assessment_page(user: User):
         ])
         
         # Determine user level
-        if total_score <= 4:
+        if total_score <= 5:
             level = "Beginner"
-        elif total_score <= 8:
+        elif total_score <= 10:
             level = "Novice"
-        elif total_score <= 12:
+        elif total_score <= 15:
             level = "Intermediate"
-        elif total_score <= 16:
+        elif total_score <= 20:
             level = "Advanced"
         else:
             level = "Expert"
         
         st.markdown("### Your Results")
-        st.write(f"- **Total Score**: {total_score}/20")
+        st.write(f"- **Total Score**: {total_score}/24")
         st.write(f"- **User Level**: {level}")
         
         if st.button("Save and Continue", type="primary"):
@@ -437,6 +492,7 @@ def render_assessment_page(user: User):
             
             # Save assessment results to user profile
             domain_scores = {
+                'sql_expertise': st.session_state.assessment_scores.get('sql_expertise', 0),
                 'data_analysis_fundamentals': st.session_state.assessment_scores.get('data_analysis_fundamentals', 0),
                 'business_analytics': st.session_state.assessment_scores.get('business_analytics', 0),
                 'forecasting_statistics': st.session_state.assessment_scores.get('forecasting_statistics', 0),

@@ -18,6 +18,7 @@ def create_tables(db_path: str = "src/database/superstore.db"):
         sql_expertise_level INTEGER DEFAULT 2,
         cognitive_load_capacity INTEGER DEFAULT 3,
         has_completed_assessment BOOLEAN DEFAULT FALSE,
+        sql_expertise INTEGER DEFAULT 0,
         data_analysis_fundamentals INTEGER DEFAULT 0,
         business_analytics INTEGER DEFAULT 0,
         forecasting_statistics INTEGER DEFAULT 0,
@@ -142,6 +143,7 @@ def migrate_database(db_path: str = "src/database/superstore.db"):
     
     # Ensure assessment columns exist
     for stmt in [
+        "ALTER TABLE users ADD COLUMN sql_expertise INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN data_analysis_fundamentals INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN business_analytics INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN forecasting_statistics INTEGER DEFAULT 0",

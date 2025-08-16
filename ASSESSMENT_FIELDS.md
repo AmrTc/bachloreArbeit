@@ -5,28 +5,35 @@ The Data Assistant Project now requires specific assessment fields to be filled 
 
 ## Required Assessment Fields
 
-### 1. Age (`age`)
+### 1. SQL Expertise (`sql_expertise`)
+- **Type**: Integer
+- **Required**: Yes
+- **Default Value**: 2
+- **Description**: User's SQL expertise level (1-5 scale)
+- **Usage**: Used for determining SQL concept complexity and explanation needs
+
+### 2. Age (`age`)
 - **Type**: Integer
 - **Required**: Yes
 - **Default Value**: 25
 - **Description**: User's age in years
 - **Usage**: Used for cognitive load assessment and personalized explanations
 
-### 2. Gender (`gender`)
+### 3. Gender (`gender`)
 - **Type**: String
 - **Required**: Yes
 - **Default Value**: "Not specified"
 - **Description**: User's gender identity
 - **Usage**: Used for demographic analysis and personalized content
 
-### 3. Profession (`profession`)
+### 4. Profession (`profession`)
 - **Type**: String
 - **Required**: Yes
 - **Default Value**: "Student"
 - **Description**: User's current profession or occupation
 - **Usage**: Used for context-aware explanations and cognitive load assessment
 
-### 4. Education Level (`education_level`)
+### 5. Education Level (`education_level`)
 - **Type**: String
 - **Required**: Yes
 - **Default Value**: "Bachelor"
@@ -51,6 +58,7 @@ class UserProfile:
     last_updated: str
     
     # Required Assessment Fields
+    sql_expertise: int
     age: int
     gender: str
     profession: str
@@ -98,6 +106,7 @@ profile = UserProfile(
     learning_preferences={...},
     last_updated="2024-01-01T00:00:00",
     # Required Assessment Fields
+    sql_expertise=3,
     age=28,
     gender="Male",
     profession="Data Analyst",
@@ -109,6 +118,7 @@ profile = UserProfile(
 ```python
 agent.update_user_assessment_fields(
     user_id="john_doe",
+    sql_expertise=4,
     age=29,
     gender="Male",
     profession="Senior Data Analyst",

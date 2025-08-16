@@ -33,6 +33,7 @@ class UserProfile:
     last_updated: str
     
     # Required Assessment Fields
+    sql_expertise: int  # New: Dedicated SQL expertise field from assessment
     age: int
     gender: str
     profession: str
@@ -251,11 +252,13 @@ Return a JSON object with the following structure:
     
     def _validate_user_profiles(self):
         """Validate that all user profiles have required assessment fields."""
-        required_fields = ['age', 'gender', 'profession', 'education_level']
+        required_fields = ['sql_expertise', 'age', 'gender', 'profession', 'education_level']
         
         for user_id, profile in self.user_profiles.items():
             missing_fields = []
             
+            if not hasattr(profile, 'sql_expertise') or profile.sql_expertise is None:
+                missing_fields.append('sql_expertise')
             if not hasattr(profile, 'age') or profile.age is None:
                 missing_fields.append('age')
             if not hasattr(profile, 'gender') or not profile.gender:
@@ -268,6 +271,8 @@ Return a JSON object with the following structure:
             if missing_fields:
                 logger.warning(f"User {user_id} missing required assessment fields: {missing_fields}")
                 # Set default values for missing fields
+                if 'sql_expertise' in missing_fields:
+                    profile.sql_expertise = 2
                 if 'age' in missing_fields:
                     profile.age = 25
                 if 'gender' in missing_fields:
@@ -277,20 +282,26 @@ Return a JSON object with the following structure:
                 if 'education_level' in missing_fields:
                     profile.education_level = "Bachelor"
                 
-                logger.info(f"Set default values for user {user_id}: age={profile.age}, gender={profile.gender}, profession={profile.profession}, education_level={profile.education_level}")
+                logger.info(f"Set default values for user {user_id}: sql_expertise={profile.sql_expertise}, age={profile.age}, gender={profile.gender}, profession={profile.profession}, education_level={profile.education_level}")
         
         # Save updated profiles
         if any(hasattr(profile, 'age') and profile.age is not None for profile in self.user_profiles.items()):
             self._save_user_profiles()
     
-    def update_user_assessment_fields(self, user_id: str, age: int, gender: str, profession: str, education_level: str):
+    def update_user_assessment_fields(self, user_id: str, sql_expertise: int = None, age: int = None, gender: str = None, profession: str = None, education_level: str = None):
         """Update user assessment fields."""
         if user_id in self.user_profiles:
             profile = self.user_profiles[user_id]
-            profile.age = age
-            profile.gender = gender
-            profile.profession = profession
-            profile.education_level = education_level
+            if sql_expertise is not None:
+                profile.sql_expertise_level = sql_expertise
+            if age is not None:
+                profile.age = age
+            if gender is not None:
+                profile.gender = gender
+            if profession is not None:
+                profile.profession = profession
+            if education_level is not None:
+                profile.education_level = education_level
             profile.last_updated = datetime.now().isoformat()
             
             # Save updated profile
@@ -965,20 +976,21 @@ Should this user receive an explanation for this query? What type of explanation
                 
                 return UserProfile(
                     user_id=user_id,
-                    sql_expertise_level=csv_data['sql_expertise_level'],
+                    sql_expertise_level=csv_data.get('sql_expertise', csv_data['sql_expertise_level']),
                     cognitive_load_capacity=cognitive_capacity,
                     sql_concept_levels={
-                        "basic_select": min(csv_data['sql_expertise_level'], 3),
-                        "aggregation": max(1, csv_data['sql_expertise_level'] - 1),
-                        "joins": max(1, csv_data['sql_expertise_level'] - 2),
-                        "advanced_logic": max(1, csv_data['sql_expertise_level'] - 3),
-                        "window_functions": max(1, csv_data['sql_expertise_level'] - 4),
-                        "advanced_analytics": max(1, csv_data['sql_expertise_level'] - 4)
+                        "basic_select": min(csv_data.get('sql_expertise', csv_data['sql_expertise_level']), 3),
+                        "aggregation": max(1, csv_data.get('sql_expertise', csv_data['sql_expertise_level']) - 1),
+                        "joins": max(1, csv_data.get('sql_expertise', csv_data['sql_expertise_level']) - 2),
+                        "advanced_logic": max(1, csv_data.get('sql_expertise', csv_data['sql_expertise_level']) - 3),
+                        "window_functions": max(1, csv_data.get('sql_expertise', csv_data['sql_expertise_level']) - 4),
+                        "advanced_analytics": max(1, csv_data.get('sql_expertise', csv_data['sql_expertise_level']) - 4)
                     },
                     prior_query_history=[],
                     learning_preferences={"explanation_style": "step_by_step"},
                     last_updated=datetime.now().isoformat(),
                     # Required Assessment Fields - use defaults if not available
+                    sql_expertise=csv_data.get('sql_expertise', 2),
                     age=csv_data.get('age', 25),
                     gender=csv_data.get('gender', 'Not specified'),
                     profession=csv_data.get('profession', 'Student'),
@@ -1010,6 +1022,7 @@ Should this user receive an explanation for this query? What type of explanation
             learning_preferences={"explanation_style": "step_by_step"},
             last_updated=datetime.now().isoformat(),
             # Required Assessment Fields - default values
+            sql_expertise=2,  # Default SQL expertise level
             age=25,
             gender="Not specified",
             profession="Student",

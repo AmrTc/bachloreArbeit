@@ -19,6 +19,7 @@ class User:
     has_completed_assessment: bool = False
     
     # CLT-CFT Assessment Fields
+    sql_expertise: int = 0
     data_analysis_fundamentals: int = 0
     business_analytics: int = 0
     forecasting_statistics: int = 0
@@ -52,6 +53,7 @@ class User:
             sql_expertise_level=2,  # Default values
             cognitive_load_capacity=3,
             has_completed_assessment=False,
+            sql_expertise=2,  # Default SQL expertise level
             sql_concept_levels={},
             prior_query_history=[],
             learning_preferences={},
@@ -77,7 +79,7 @@ class User:
             SELECT id, username, password_hash, role,
                    created_at, last_login, sql_expertise_level, 
                    cognitive_load_capacity, has_completed_assessment,
-                   data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                   sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
                    data_visualization, domain_knowledge_retail, total_assessment_score,
                    user_level_category, age, gender, profession, education_level, study_training
             FROM users WHERE username = ?
@@ -122,7 +124,7 @@ class User:
             SELECT id, username, password_hash, role,
                    created_at, last_login, sql_expertise_level, 
                    cognitive_load_capacity, has_completed_assessment,
-                   data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                   sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
                    data_visualization, domain_knowledge_retail, total_assessment_score,
                    user_level_category, age, gender, profession, education_level, study_training
             FROM users WHERE id = ?
@@ -167,9 +169,9 @@ class User:
             SELECT id, username, password_hash, role,
                    created_at, last_login, sql_expertise_level, 
                    cognitive_load_capacity, has_completed_assessment,
-                   data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                   sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
                    data_visualization, domain_knowledge_retail, total_assessment_score,
-                   user_level_category, gender, profession, education_level, study_training
+                   user_level_category, age, gender, profession, education_level, study_training
             FROM users WHERE username = ?
         """, (username,))
         
@@ -213,17 +215,17 @@ class User:
                 INSERT INTO users (username, password_hash, role,
                                  created_at, last_login, sql_expertise_level, 
                                  cognitive_load_capacity, has_completed_assessment,
-                                 data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                                 sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
                                  data_visualization, domain_knowledge_retail, total_assessment_score,
                                  user_level_category, age, gender, profession, education_level, study_training)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 self.username, self.password_hash, self.role, 
                 self.created_at.isoformat(), 
                 self.last_login.isoformat() if self.last_login else None,
                 self.sql_expertise_level, self.cognitive_load_capacity,
                 self.has_completed_assessment,
-                self.data_analysis_fundamentals, self.business_analytics, self.forecasting_statistics,
+                self.sql_expertise, self.data_analysis_fundamentals, self.business_analytics, self.forecasting_statistics,
                 self.data_visualization, self.domain_knowledge_retail, self.total_assessment_score,
                 self.user_level_category, self.age, self.gender, self.profession, self.education_level, self.study_training
             ))
@@ -235,7 +237,7 @@ class User:
                 SET username = ?, password_hash = ?, role = ?, 
                     last_login = ?, sql_expertise_level = ?, 
                     cognitive_load_capacity = ?, has_completed_assessment = ?,
-                    data_analysis_fundamentals = ?, business_analytics = ?, forecasting_statistics = ?,
+                    sql_expertise = ?, data_analysis_fundamentals = ?, business_analytics = ?, forecasting_statistics = ?,
                     data_visualization = ?, domain_knowledge_retail = ?, total_assessment_score = ?,
                     user_level_category = ?, age = ?, gender = ?, profession = ?, education_level = ?, study_training = ?
                 WHERE id = ?
@@ -244,7 +246,7 @@ class User:
                 self.last_login.isoformat() if self.last_login else None,
                 self.sql_expertise_level, self.cognitive_load_capacity,
                 self.has_completed_assessment,
-                self.data_analysis_fundamentals, self.business_analytics, self.forecasting_statistics,
+                self.sql_expertise, self.data_analysis_fundamentals, self.business_analytics, self.forecasting_statistics,
                 self.data_visualization, self.domain_knowledge_retail, self.total_assessment_score,
                 self.user_level_category, self.age, self.gender, self.profession, self.education_level, self.study_training, self.id
             ))
@@ -265,8 +267,9 @@ class User:
         self.save(db_path)
     
     def complete_comprehensive_assessment(self, db_path: str, domain_scores: Dict[str, int]):
-        """Complete comprehensive 5-domain assessment and update user profile."""
+        """Complete comprehensive 6-domain assessment and update user profile."""
         # Update domain scores
+        self.sql_expertise = domain_scores.get('sql_expertise', 0)
         self.data_analysis_fundamentals = domain_scores.get('data_analysis_fundamentals', 0)
         self.business_analytics = domain_scores.get('business_analytics', 0)
         self.forecasting_statistics = domain_scores.get('forecasting_statistics', 0)
@@ -275,6 +278,7 @@ class User:
         
         # Calculate total score
         self.total_assessment_score = sum([
+            self.sql_expertise,
             self.data_analysis_fundamentals,
             self.business_analytics,
             self.forecasting_statistics,
@@ -283,13 +287,13 @@ class User:
         ])
         
         # Determine user level category
-        if self.total_assessment_score <= 4:
+        if self.total_assessment_score <= 5:
             self.user_level_category = "Beginner"
-        elif self.total_assessment_score <= 8:
+        elif self.total_assessment_score <= 10:
             self.user_level_category = "Novice"
-        elif self.total_assessment_score <= 12:
+        elif self.total_assessment_score <= 15:
             self.user_level_category = "Intermediate"
-        elif self.total_assessment_score <= 16:
+        elif self.total_assessment_score <= 20:
             self.user_level_category = "Advanced"
         else:
             self.user_level_category = "Expert"
@@ -330,7 +334,7 @@ class User:
             SELECT id, username, password_hash, role,
                    created_at, last_login, sql_expertise_level, 
                    cognitive_load_capacity, has_completed_assessment,
-                   data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                   sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
                    data_visualization, domain_knowledge_retail, total_assessment_score,
                    user_level_category, age, gender, profession, education_level, study_training
             FROM users
@@ -349,21 +353,22 @@ class User:
                 last_login=datetime.fromisoformat(row[5]) if row[5] else None,
                 sql_expertise_level=row[6], 
                 cognitive_load_capacity=row[7], has_completed_assessment=bool(row[8]),
-                data_analysis_fundamentals=row[9] if len(row) > 9 else 0,
-                business_analytics=row[10] if len(row) > 10 else 0,
-                forecasting_statistics=row[11] if len(row) > 11 else 0,
-                data_visualization=row[12] if len(row) > 12 else 0,
-                domain_knowledge_retail=row[13] if len(row) > 13 else 0,
-                total_assessment_score=row[14] if len(row) > 14 else 0,
-                user_level_category=row[15] if len(row) > 15 else "Beginner",
+                sql_expertise=row[9] if len(row) > 9 else 0,
+                data_analysis_fundamentals=row[10] if len(row) > 10 else 0,
+                business_analytics=row[11] if len(row) > 11 else 0,
+                forecasting_statistics=row[12] if len(row) > 12 else 0,
+                data_visualization=row[13] if len(row) > 13 else 0,
+                domain_knowledge_retail=row[14] if len(row) > 14 else 0,
+                total_assessment_score=row[15] if len(row) > 15 else 0,
+                user_level_category=row[16] if len(row) > 16 else "Beginner",
                 sql_concept_levels={},
                 prior_query_history=[],
                 learning_preferences={},
-                age=row[16] if len(row) > 16 else None,
-                gender=row[17] if len(row) > 17 else None,
-                profession=row[18] if len(row) > 18 else None,
-                education_level=row[19] if len(row) > 19 else None,
-                study_training=row[20] if len(row) > 20 else None
+                age=row[17] if len(row) > 17 else None,
+                gender=row[18] if len(row) > 18 else None,
+                profession=row[19] if len(row) > 19 else None,
+                education_level=row[20] if len(row) > 20 else None,
+                study_training=row[21] if len(row) > 21 else None
             ))
         
         return users
