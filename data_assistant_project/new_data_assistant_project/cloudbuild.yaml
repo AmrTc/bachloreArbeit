@@ -1,0 +1,28 @@
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/data-assistant:$COMMIT_SHA', '.']
+    
+  # Push the Docker image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/data-assistant:$COMMIT_SHA']
+    
+  # Tag the image with 'latest' tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['tag', 'gcr.io/$PROJECT_ID/data-assistant:$COMMIT_SHA', 'gcr.io/$PROJECT_ID/data-assistant:latest']
+    
+  # Push the 'latest' tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/data-assistant:latest']
+
+# Store images in Google Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/data-assistant:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/data-assistant:latest'
+
+# Build timeout
+timeout: '1200s'
+
+# Machine type for faster builds
+options:
+  machineType: 'E2_HIGHCPU_8'
