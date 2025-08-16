@@ -199,7 +199,7 @@ def render_task_page(user: User):
             {
                 "id": 1,
                 "title": "Basic Sales Overview",
-                "prompt": "Show me the total sales for each year from 2014 to 2017"
+                "prompt": "Show me the 5 most sold products"
             },
             {
                 "id": 2,
