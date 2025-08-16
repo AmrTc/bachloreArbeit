@@ -21,7 +21,7 @@ images:
   - 'gcr.io/$PROJECT_ID/data-assistant:latest'
 
 # Build timeout
-timeout: '1200000000000000s'
+timeout: '12000s'
 
 # Machine type for faster builds
 options:
