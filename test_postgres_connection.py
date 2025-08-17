@@ -7,10 +7,36 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import logging
+import socket
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+def test_network_connectivity():
+    """Test basic network connectivity to the PostgreSQL host."""
+    logger.info("🌐 Testing network connectivity...")
+    
+    host = '34.59.248.159'
+    port = 5432
+    
+    try:
+        # Test if we can reach the host
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(10)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        
+        if result == 0:
+            logger.info(f"✅ Network connectivity to {host}:{port} successful")
+            return True
+        else:
+            logger.error(f"❌ Network connectivity to {host}:{port} failed (error code: {result})")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Network test failed: {e}")
+        return False
 
 def test_connection():
     """Test PostgreSQL connection to your instance."""
@@ -23,7 +49,8 @@ def test_connection():
         'user': 'postgres',
         'password': '<zdG$DLpmG,~p3A',  # Your password
         'sslmode': 'require',
-        'connect_timeout': 30
+        'connect_timeout': 10,  # Reduced timeout for faster testing
+        'application_name': 'connection_test'
     }
     
     try:
@@ -31,6 +58,7 @@ def test_connection():
         logger.info(f"📍 Host: {PG_CONFIG['host']}")
         logger.info(f"👤 User: {PG_CONFIG['user']}")
         logger.info(f"📚 Database: {PG_CONFIG['database']}")
+        logger.info(f"⏱️  Timeout: {PG_CONFIG['connect_timeout']}s")
         
         # Test connection
         conn = psycopg2.connect(**PG_CONFIG)
@@ -72,6 +100,20 @@ def test_connection():
         logger.info("🎉 All connection tests passed successfully!")
         return True
         
+    except psycopg2.OperationalError as e:
+        logger.error(f"❌ Operational error: {e}")
+        if "timeout expired" in str(e):
+            logger.error("⏰ Connection timeout - check if the instance is running and accessible")
+        elif "connection refused" in str(e):
+            logger.error("🚫 Connection refused - check if PostgreSQL is running on the instance")
+        elif "authentication failed" in str(e):
+            logger.error("🔐 Authentication failed - check username and password")
+        return False
+        
+    except psycopg2.ProgrammingError as e:
+        logger.error(f"❌ Programming error: {e}")
+        return False
+        
     except Exception as e:
         logger.error(f"❌ Connection test failed: {e}")
         return False
@@ -100,7 +142,7 @@ def test_environment_variables():
     if all_set:
         logger.info("✅ All environment variables are set")
     else:
-        logger.warning("⚠️ Some environment variables are missing")
+        logger.info("⚠️ Some environment variables are missing")
     
     return all_set
 
@@ -108,6 +150,16 @@ def main():
     """Main test function."""
     logger.info("🚀 PostgreSQL Connection Test")
     logger.info("=" * 40)
+    
+    # Test network connectivity first
+    if not test_network_connectivity():
+        logger.error("❌ Network connectivity test failed!")
+        logger.error("🔍 Please check:")
+        logger.error("   - Is the Google Cloud SQL instance running?")
+        logger.error("   - Is the IP address correct?")
+        logger.error("   - Are there any firewall rules blocking access?")
+        logger.error("   - Is the instance configured to accept connections from your IP?")
+        return 1
     
     # Test environment variables
     test_environment_variables()
@@ -124,6 +176,13 @@ def main():
         logger.error("")
         logger.error("❌ Connection test failed!")
         logger.error("🔍 Please check your configuration and try again")
+        logger.error("")
+        logger.error("💡 Troubleshooting tips:")
+        logger.error("   1. Verify the instance is running in Google Cloud Console")
+        logger.error("   2. Check if the IP address has changed")
+        logger.error("   3. Verify the password is correct")
+        logger.error("   4. Check if the instance allows connections from your IP")
+        logger.error("   5. Try connecting from Google Cloud Shell")
         return 1
     
     return 0
