@@ -305,7 +305,7 @@ if __name__ == "__main__":
     # Get environment variables for PostgreSQL connection
     PG_HOST = os.getenv('PG_HOST', '34.59.248.159')
     PG_PORT = int(os.getenv('PG_PORT', '5432'))
-    PG_DATABASE = os.getenv('PG_DATABASE', 'data_assistant')
+    PG_DATABASE = os.getenv('PG_DATABASE', 'superstore')
     PG_USER = os.getenv('PG_USER', 'postgres')
     PG_PASSWORD = os.getenv('PG_PASSWORD', '<zdG$DLpmG,~p3A')
     

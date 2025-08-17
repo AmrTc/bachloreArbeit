@@ -15,7 +15,7 @@ class PostgresConfig:
         return {
             'host': os.getenv('PG_HOST', '34.59.248.159'),  # Updated IP address
             'port': int(os.getenv('PG_PORT', '5432')),
-            'database': os.getenv('PG_DATABASE', 'data_assistant'),
+            'database': os.getenv('PG_DATABASE', 'superstore'),
             'user': os.getenv('PG_USER', 'postgres'),
             'password': os.getenv('PG_PASSWORD', '<zdG$DLpmG,~p3A'),  # Updated password
             'sslmode': os.getenv('PG_SSLMODE', 'require'),
@@ -70,7 +70,7 @@ ENV_TEMPLATE = """
 # PostgreSQL Configuration for Google Cloud
 export PG_HOST="34.59.248.159"
 export PG_PORT="5432"
-export PG_DATABASE="data_assistant"
+export PG_DATABASE="superstore"
 export PG_USER="postgres"
 export PG_PASSWORD="<zdG$DLpmG,~p3A"
 export PG_SSLMODE="require"
@@ -83,7 +83,7 @@ DOCKER_ENV_TEMPLATE = """
 # PostgreSQL Configuration for Docker/Cloud
 PG_HOST=34.59.248.159
 PG_PORT=5432
-PG_DATABASE=data_assistant
+PG_DATABASE=superstore
 PG_USER=postgres
 PG_PASSWORD=<zdG$DLpmG,~p3A
 PG_SSLMODE=require

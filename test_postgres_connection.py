@@ -45,7 +45,7 @@ def test_connection():
     PG_CONFIG = {
         'host': '34.59.248.159',  # Your instance IP
         'port': 5432,
-        'database': 'data_assistant',
+        'database': 'superstore',
         'user': 'postgres',
         'password': '<zdG$DLpmG,~p3A',  # Your password
         'sslmode': 'require',

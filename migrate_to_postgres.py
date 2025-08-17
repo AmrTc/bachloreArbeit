@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 PG_CONFIG = {
     'host': '34.59.248.159',  # Updated IP address
     'port': 5432,
-    'database': 'data_assistant',
+    'database': 'superstore',
     'user': 'postgres',
     'password': '<zdG$DLpmG,~p3A',  # Updated password
     'sslmode': 'require',
