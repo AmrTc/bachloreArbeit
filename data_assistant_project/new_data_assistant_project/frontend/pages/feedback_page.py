@@ -6,18 +6,18 @@ import logging
 def robust_import_modules():
     """Import required modules with multiple fallback strategies."""
     
-    # Strategy 1: Try absolute imports (local development)
+    # Strategy 1: Try direct imports (Docker/production - new structure)
     try:
-        from new_data_assistant_project.src.database.models import User, ExplanationFeedback
-        from new_data_assistant_project.src.utils.auth_manager import AuthManager
-        print("✅ Feedback Page: Absolute imports successful")
+        from src.database.postgres_models import User, ExplanationFeedback
+        from src.utils.auth_manager import AuthManager
+        print("✅ Feedback Page: Direct imports successful")
         return User, AuthManager
     except ImportError as e:
-        print(f"❌ Absolute imports failed: {e}")
+        print(f"❌ Direct imports failed: {e}")
     
     # Strategy 2: Try direct imports (Docker/production - new structure)
     try:
-        from src.database.models import User, ExplanationFeedback
+        from src.database.postgres_models import User, ExplanationFeedback
         from src.utils.auth_manager import AuthManager
         print("✅ Feedback Page: Direct imports successful")
         return User, AuthManager
@@ -26,7 +26,7 @@ def robust_import_modules():
     
     # Strategy 3: Try relative imports (fallback)
     try:
-        from src.database.models import User, ExplanationFeedback
+        from src.database.postgres_models import User, ExplanationFeedback
         from src.utils.auth_manager import AuthManager
         print("✅ Feedback Page: Relative imports successful")
         return User, AuthManager
@@ -41,7 +41,7 @@ def robust_import_modules():
         sys.path.insert(0, str(current_dir))
         sys.path.insert(0, str(current_dir / 'src'))
         
-        from database.models import User, ExplanationFeedback
+        from database.postgres_models import User, ExplanationFeedback
         from utils.auth_manager import AuthManager
         print("✅ Feedback Page: Manual path imports successful")
         return User, AuthManager
@@ -55,15 +55,11 @@ User, AuthManager = robust_import_modules()
 
 # Import ComprehensiveFeedback model
 try:
-    from new_data_assistant_project.src.database.models import ComprehensiveFeedback
+    from src.database.postgres_models import ComprehensiveFeedback
     print("✅ ComprehensiveFeedback import successful")
 except ImportError:
-    try:
-        from src.database.models import ComprehensiveFeedback
-        print("✅ ComprehensiveFeedback direct import successful")
-    except ImportError:
-        print("❌ ComprehensiveFeedback import failed")
-        ComprehensiveFeedback = None
+    print("❌ ComprehensiveFeedback import failed")
+    ComprehensiveFeedback = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
