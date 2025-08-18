@@ -162,12 +162,77 @@ def create_postgres_tables(host: str, port: int, database: str, user: str, passw
         conn.commit()
         logger.info("PostgreSQL tables created successfully")
         
+        # Update existing tables with any missing columns
+        update_existing_tables(host, port, database, user, password)
+        
     except Exception as e:
         conn.rollback()
         logger.error(f"Error creating PostgreSQL tables: {e}")
         raise
     finally:
         cursor.close()
+        conn.close()
+
+def update_existing_tables(host: str, port: int, database: str, user: str, password: str):
+    """Update existing tables with missing columns."""
+    conn = get_postgres_connection(host, port, database, user, password)
+    cursor = conn.cursor()
+    
+    try:
+        # Check if sql_expertise column exists in users table
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'sql_expertise'
+        """)
+        
+        if not cursor.fetchone():
+            logger.info("Adding sql_expertise column to users table...")
+            cursor.execute("""
+                ALTER TABLE users 
+                ADD COLUMN sql_expertise INTEGER DEFAULT 0
+            """)
+            logger.info("Added sql_expertise column to users table")
+        
+        # Check if other missing columns exist
+        missing_columns = [
+            ('sql_expertise_level', 'INTEGER DEFAULT 2'),
+            ('cognitive_load_capacity', 'INTEGER DEFAULT 3'),
+            ('has_completed_assessment', 'BOOLEAN DEFAULT FALSE'),
+            ('data_analysis_fundamentals', 'INTEGER DEFAULT 0'),
+            ('business_analytics', 'INTEGER DEFAULT 0'),
+            ('forecasting_statistics', 'INTEGER DEFAULT 0'),
+            ('data_visualization', 'INTEGER DEFAULT 0'),
+            ('domain_knowledge_retail', 'INTEGER DEFAULT 0'),
+            ('total_assessment_score', 'INTEGER DEFAULT 0'),
+            ('user_level_category', 'VARCHAR(50) DEFAULT \'Beginner\''),
+            ('age', 'INTEGER'),
+            ('gender', 'VARCHAR(100)'),
+            ('profession', 'VARCHAR(255)'),
+            ('education_level', 'VARCHAR(255)'),
+            ('study_training', 'VARCHAR(255)')
+        ]
+        
+        for column_name, column_type in missing_columns:
+            cursor.execute(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'users' AND column_name = '{column_name}'
+            """)
+            
+            if not cursor.fetchone():
+                logger.info(f"Adding {column_name} column to users table...")
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}")
+                logger.info(f"Added {column_name} column to users table")
+        
+        conn.commit()
+        logger.info("Table updates completed successfully")
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error updating tables: {e}")
+        raise
+    finally:
         conn.close()
 
 def create_admin_user(host: str, port: int, database: str, user: str, password: str):
@@ -309,7 +374,7 @@ if __name__ == "__main__":
     PG_USER = os.getenv('PG_USER', 'postgres')
     PG_PASSWORD = os.getenv('PG_PASSWORD', '<zdG$DLpmG,~p3A')
     
-    # Create tables
+    # Create tables and update existing ones
     create_postgres_tables(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD)
     
     # Create admin user
