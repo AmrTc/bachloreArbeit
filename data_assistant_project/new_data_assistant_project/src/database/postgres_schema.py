@@ -247,14 +247,29 @@ def create_admin_user(host: str, port: int, database: str, user: str, password: 
             logger.info("Admin user already exists")
             return
         
-        # Create admin user
+        # Create admin user with new password
+        admin_password = "Nu4attNrF6Bcp5v"
+        password_hash = hashlib.sha256(admin_password.encode()).hexdigest()
+        
         cursor.execute('''
-        INSERT INTO users (username, password_hash, role, has_completed_assessment)
-        VALUES (%s, %s, %s, %s)
-        ''', ('admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', 'admin', True))
+        INSERT INTO users (
+            username, password_hash, role, has_completed_assessment,
+            sql_expertise_level, cognitive_load_capacity,
+            sql_expertise, data_analysis_fundamentals, business_analytics,
+            forecasting_statistics, data_visualization, domain_knowledge_retail,
+            total_assessment_score, user_level_category, age, gender,
+            profession, education_level, study_training
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (
+            'admin', password_hash, 'admin', True,
+            5, 5,  # High expertise levels
+            5, 5, 5, 5, 5, 5,  # All domain scores maxed
+            30, 'Expert',  # Total score and category
+            30, 'Not specified', 'System Administrator', 'PhD', 'Computer Science'
+        ))
         
         conn.commit()
-        logger.info("Admin user created successfully (username: admin, password: admin123)")
+        logger.info(f"Admin user created successfully (username: admin, password: {admin_password})")
         
     except Exception as e:
         conn.rollback()
