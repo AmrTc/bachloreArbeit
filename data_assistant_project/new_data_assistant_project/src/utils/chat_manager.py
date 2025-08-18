@@ -6,11 +6,11 @@ from datetime import datetime
 # PostgreSQL imports
 try:
     from new_data_assistant_project.src.database.postgres_models import ChatSession, ExplanationFeedback, User
-    from new_data_assistant_project.src.agents.clt_cft_agent import CLTCFTAgent
+    from new_data_assistant_project.src.agents.clt_cft_agent import CLTCFTAgent, UserProfile  # UserProfile hier importieren
     from new_data_assistant_project.src.database.postgres_config import PostgresConfig
 except ImportError:
     from src.database.postgres_models import ChatSession, ExplanationFeedback, User
-    from src.agents.clt_cft_agent import CLTCFTAgent
+    from src.agents.clt_cft_agent import CLTCFTAgent, UserProfile  # UserProfile hier importieren
     from src.database.postgres_config import PostgresConfig
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class ChatManager:
                 return self.agent.user_profiles[user.username]
             
             # Create new profile based on user data
-            from new_data_assistant_project.src.agents.clt_cft_agent import UserProfile
+            # UserProfile ist jetzt bereits am Anfang der Datei importiert
             
             # Map user level to SQL expertise
             level_mapping = {
@@ -85,6 +85,7 @@ class ChatManager:
                 learning_preferences=user.learning_preferences or {},
                 last_updated=datetime.now().isoformat(),
                 # Required Assessment Fields
+                sql_expertise=sql_expertise,  # Fix: verwende sql_expertise statt undefined variable
                 age=user.age or 25,
                 gender=user.gender or "Not specified",
                 profession=user.profession or "Student",
@@ -97,8 +98,7 @@ class ChatManager:
             
         except Exception as e:
             logger.error(f"Error creating user profile: {e}")
-            # Return default profile
-            from new_data_assistant_project.src.agents.clt_cft_agent import UserProfile
+            # Return default profile - UserProfile ist bereits importiert
             return UserProfile(
                 user_id=user.username,
                 sql_expertise_level=3,
@@ -108,6 +108,7 @@ class ChatManager:
                 learning_preferences=user.learning_preferences or {},
                 last_updated=datetime.now().isoformat(),
                 # Required Assessment Fields
+                sql_expertise=3,  # Fix: verwende sql_expertise
                 age=user.age or 25,
                 gender=user.gender or "Not specified",
                 profession=user.profession or "Student",
@@ -399,4 +400,4 @@ class ChatManager:
                 # Set flag to skip loading history on next render
                 st.session_state[f'skip_load_history_user_{user.id}'] = True
                 st.success("Chat history cleared!")
-                st.rerun() 
+                st.rerun()
