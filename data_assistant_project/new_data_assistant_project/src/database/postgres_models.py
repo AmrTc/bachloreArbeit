@@ -254,6 +254,236 @@ class User:
             logger.error(f"Error completing assessment: {e}")
             raise
 
+    # ------------------------------
+    # Additional CRUD helpers
+    # ------------------------------
+    @classmethod
+    def get_by_username(cls, db_config: Dict[str, Any], username: str) -> Optional["User"]:
+        """Retrieve a user by username from PostgreSQL."""
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, username, password_hash, role,
+                       created_at, last_login, sql_expertise_level,
+                       cognitive_load_capacity, has_completed_assessment,
+                       sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                       data_visualization, domain_knowledge_retail, total_assessment_score,
+                       user_level_category, age, gender, profession, education_level, study_training
+                FROM users WHERE username = %s
+                """,
+                (username,),
+            )
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            if not row:
+                return None
+            return cls(
+                id=row[0],
+                username=row[1],
+                password_hash=row[2],
+                role=row[3],
+                created_at=row[4] if isinstance(row[4], datetime) else datetime.fromisoformat(str(row[4])),
+                last_login=(row[5] if isinstance(row[5], datetime) else (datetime.fromisoformat(str(row[5])) if row[5] else None)),
+                sql_expertise_level=row[6] or 2,
+                cognitive_load_capacity=row[7] or 3,
+                has_completed_assessment=bool(row[8]) if row[8] is not None else False,
+                sql_expertise=row[9] or 0,
+                data_analysis_fundamentals=row[10] or 0,
+                business_analytics=row[11] or 0,
+                forecasting_statistics=row[12] or 0,
+                data_visualization=row[13] or 0,
+                domain_knowledge_retail=row[14] or 0,
+                total_assessment_score=row[15] or 0,
+                user_level_category=row[16] or "Beginner",
+                age=row[17],
+                gender=row[18],
+                profession=row[19],
+                education_level=row[20],
+                study_training=row[21],
+            )
+        except Exception as e:
+            logger.error(f"Error fetching user by username: {e}")
+            return None
+
+    @classmethod
+    def get_by_id(cls, db_config: Dict[str, Any], user_id: int) -> Optional["User"]:
+        """Retrieve a user by id from PostgreSQL."""
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, username, password_hash, role,
+                       created_at, last_login, sql_expertise_level,
+                       cognitive_load_capacity, has_completed_assessment,
+                       sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                       data_visualization, domain_knowledge_retail, total_assessment_score,
+                       user_level_category, age, gender, profession, education_level, study_training
+                FROM users WHERE id = %s
+                """,
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            if not row:
+                return None
+            return cls(
+                id=row[0],
+                username=row[1],
+                password_hash=row[2],
+                role=row[3],
+                created_at=row[4] if isinstance(row[4], datetime) else datetime.fromisoformat(str(row[4])),
+                last_login=(row[5] if isinstance(row[5], datetime) else (datetime.fromisoformat(str(row[5])) if row[5] else None)),
+                sql_expertise_level=row[6] or 2,
+                cognitive_load_capacity=row[7] or 3,
+                has_completed_assessment=bool(row[8]) if row[8] is not None else False,
+                sql_expertise=row[9] or 0,
+                data_analysis_fundamentals=row[10] or 0,
+                business_analytics=row[11] or 0,
+                forecasting_statistics=row[12] or 0,
+                data_visualization=row[13] or 0,
+                domain_knowledge_retail=row[14] or 0,
+                total_assessment_score=row[15] or 0,
+                user_level_category=row[16] or "Beginner",
+                age=row[17],
+                gender=row[18],
+                profession=row[19],
+                education_level=row[20],
+                study_training=row[21],
+            )
+        except Exception as e:
+            logger.error(f"Error fetching user by id: {e}")
+            return None
+
+    @classmethod
+    def get_all_users(cls, db_config: Dict[str, Any]) -> List["User"]:
+        """List all users for dashboards."""
+        users: List[User] = []
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, username, password_hash, role,
+                       created_at, last_login, sql_expertise_level,
+                       cognitive_load_capacity, has_completed_assessment,
+                       sql_expertise, data_analysis_fundamentals, business_analytics, forecasting_statistics,
+                       data_visualization, domain_knowledge_retail, total_assessment_score,
+                       user_level_category, age, gender, profession, education_level, study_training
+                FROM users
+                ORDER BY created_at DESC
+                """
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            for row in rows:
+                users.append(
+                    cls(
+                        id=row[0],
+                        username=row[1],
+                        password_hash=row[2],
+                        role=row[3],
+                        created_at=row[4] if isinstance(row[4], datetime) else datetime.fromisoformat(str(row[4])),
+                        last_login=(row[5] if isinstance(row[5], datetime) else (datetime.fromisoformat(str(row[5])) if row[5] else None)),
+                        sql_expertise_level=row[6] or 2,
+                        cognitive_load_capacity=row[7] or 3,
+                        has_completed_assessment=bool(row[8]) if row[8] is not None else False,
+                        sql_expertise=row[9] or 0,
+                        data_analysis_fundamentals=row[10] or 0,
+                        business_analytics=row[11] or 0,
+                        forecasting_statistics=row[12] or 0,
+                        data_visualization=row[13] or 0,
+                        domain_knowledge_retail=row[14] or 0,
+                        total_assessment_score=row[15] or 0,
+                        user_level_category=row[16] or "Beginner",
+                        age=row[17],
+                        gender=row[18],
+                        profession=row[19],
+                        education_level=row[20],
+                        study_training=row[21],
+                    )
+                )
+        except Exception as e:
+            logger.error(f"Error listing users: {e}")
+        return users
+
+    def update_user_demographics(
+        self,
+        db_config: Dict[str, Any],
+        age: int = None,
+        gender: str = None,
+        profession: str = None,
+        education_level: str = None,
+        study_training: str = None,
+    ):
+        """Update demographic info and persist to PostgreSQL."""
+        if age is not None:
+            self.age = age
+        if gender is not None:
+            self.gender = gender
+        if profession is not None:
+            self.profession = profession
+        if education_level is not None:
+            self.education_level = education_level
+        if study_training is not None:
+            self.study_training = study_training
+        self.save(db_config)
+
+    def complete_comprehensive_assessment(
+        self, db_config: Dict[str, Any], domain_scores: Dict[str, int]
+    ):
+        """Store comprehensive 6-domain assessment and update profile fields."""
+        # Update domain scores
+        self.sql_expertise = domain_scores.get("sql_expertise", 0)
+        self.data_analysis_fundamentals = domain_scores.get(
+            "data_analysis_fundamentals", 0
+        )
+        self.business_analytics = domain_scores.get("business_analytics", 0)
+        self.forecasting_statistics = domain_scores.get(
+            "forecasting_statistics", 0
+        )
+        self.data_visualization = domain_scores.get("data_visualization", 0)
+        self.domain_knowledge_retail = domain_scores.get(
+            "domain_knowledge_retail", 0
+        )
+
+        # Calculate total score
+        self.total_assessment_score = sum(
+            [
+                self.sql_expertise,
+                self.data_analysis_fundamentals,
+                self.business_analytics,
+                self.forecasting_statistics,
+                self.data_visualization,
+                self.domain_knowledge_retail,
+            ]
+        )
+
+        # Determine user level category (same thresholds as SQLite version)
+        if self.total_assessment_score <= 5:
+            self.user_level_category = "Beginner"
+        elif self.total_assessment_score <= 10:
+            self.user_level_category = "Novice"
+        elif self.total_assessment_score <= 15:
+            self.user_level_category = "Intermediate"
+        elif self.total_assessment_score <= 20:
+            self.user_level_category = "Advanced"
+        else:
+            self.user_level_category = "Expert"
+
+        # Legacy/backward compatible fields
+        self.sql_expertise_level = max(1, min(5, self.total_assessment_score // 4))
+        self.cognitive_load_capacity = max(1, min(3, self.total_assessment_score // 7))
+        self.has_completed_assessment = True
+
+        # Persist
+        self.save(db_config)
+
 
 # ------------------------------
 # Chat sessions (PostgreSQL)
