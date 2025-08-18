@@ -68,95 +68,138 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PredictionAccuracyTracker:
-    """Tracks prediction accuracy for explanation decisions."""
+    """Tracks prediction accuracy for explanation decisions in PostgreSQL."""
     
-    def __init__(self, db_path: str):
-        self.db_path = db_path
+    def __init__(self, db_config: Dict[str, Any]):
+        self.db_config = db_config
+        self._ensure_table_exists()
     
-    def record_prediction(self, session_id: int, user_id: int, 
-                         predicted_explanation_needed: bool, 
-                         actual_explanation_needed: bool,
-                         confidence_score: float = None):
-        """Record a prediction and its actual outcome."""
+    def _ensure_table_exists(self):
         try:
-            import sqlite3
-            conn = sqlite3.connect(self.db_path)
+            import psycopg2
+            conn = psycopg2.connect(**self.db_config)
             cursor = conn.cursor()
-            
-            cursor.execute("""
-                INSERT INTO prediction_accuracy (session_id, user_id, predicted_explanation_needed,
-                                               actual_explanation_needed, confidence_score, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                session_id, user_id, predicted_explanation_needed, actual_explanation_needed,
-                confidence_score, datetime.now().isoformat()
-            ))
-            
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS prediction_accuracy (
+                    id SERIAL PRIMARY KEY,
+                    session_id INTEGER,
+                    user_id INTEGER,
+                    predicted_explanation_needed BOOLEAN,
+                    actual_explanation_needed BOOLEAN,
+                    confidence_score NUMERIC,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
             conn.commit()
+            cursor.close()
             conn.close()
-            
+        except Exception as e:
+            logger.error(f"Error ensuring prediction_accuracy table: {e}")
+    
+    def record_prediction(
+        self,
+        session_id: int,
+        user_id: int,
+        predicted_explanation_needed: bool,
+        actual_explanation_needed: bool,
+        confidence_score: float = None,
+    ):
+        """Record a prediction and its actual outcome in PostgreSQL."""
+        try:
+            import psycopg2
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO prediction_accuracy (
+                    session_id, user_id, predicted_explanation_needed,
+                    actual_explanation_needed, confidence_score
+                ) VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    session_id,
+                    user_id,
+                    predicted_explanation_needed,
+                    actual_explanation_needed,
+                    confidence_score,
+                ),
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
         except Exception as e:
             logger.error(f"Error recording prediction: {e}")
     
     def get_accuracy_metrics(self, user_id: int = None) -> Dict[str, Any]:
-        """Get accuracy metrics for predictions."""
+        """Get accuracy metrics for predictions from PostgreSQL."""
         try:
-            import sqlite3
-            conn = sqlite3.connect(self.db_path)
+            import psycopg2
+            conn = psycopg2.connect(**self.db_config)
             cursor = conn.cursor()
-            
             if user_id:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT predicted_explanation_needed, actual_explanation_needed, confidence_score
-                    FROM prediction_accuracy WHERE user_id = ?
-                """, (user_id,))
+                    FROM prediction_accuracy WHERE user_id = %s
+                    """,
+                    (user_id,),
+                )
             else:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT predicted_explanation_needed, actual_explanation_needed, confidence_score
                     FROM prediction_accuracy
-                """)
-            
+                    """
+                )
             rows = cursor.fetchall()
+            cursor.close()
             conn.close()
-            
             if not rows:
                 return {
-                    'total_predictions': 0,
-                    'accuracy': 0.0,
-                    'precision': 0.0,
-                    'recall': 0.0,
-                    'f1_score': 0.0
+                    "total_predictions": 0,
+                    "accuracy": 0.0,
+                    "precision": 0.0,
+                    "recall": 0.0,
+                    "f1_score": 0.0,
                 }
-            
             total = len(rows)
             correct = sum(1 for row in rows if row[0] == row[1])
             accuracy = correct / total if total > 0 else 0.0
-            
-            # Calculate precision, recall, F1
             true_positives = sum(1 for row in rows if row[0] and row[1])
             false_positives = sum(1 for row in rows if row[0] and not row[1])
             false_negatives = sum(1 for row in rows if not row[0] and row[1])
-            
-            precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0.0
-            recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0.0
-            f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
-            
+            precision = (
+                true_positives / (true_positives + false_positives)
+                if (true_positives + false_positives) > 0
+                else 0.0
+            )
+            recall = (
+                true_positives / (true_positives + false_negatives)
+                if (true_positives + false_negatives) > 0
+                else 0.0
+            )
+            f1_score = (
+                2 * (precision * recall) / (precision + recall)
+                if (precision + recall) > 0
+                else 0.0
+            )
             return {
-                'total_predictions': total,
-                'accuracy': accuracy,
-                'precision': precision,
-                'recall': recall,
-                'f1_score': f1_score
+                "total_predictions": total,
+                "accuracy": accuracy,
+                "precision": precision,
+                "recall": recall,
+                "f1_score": f1_score,
             }
-            
         except Exception as e:
             logger.error(f"Error getting accuracy metrics: {e}")
             return {
-                'total_predictions': 0,
-                'accuracy': 0.0,
-                'precision': 0.0,
-                'recall': 0.0,
-                'f1_score': 0.0
+                "total_predictions": 0,
+                "accuracy": 0.0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
             }
 
 def render_task_page(user: User):
@@ -184,7 +227,7 @@ def render_task_page(user: User):
     # Initialize managers
     auth_manager = AuthManager()
     chat_manager = ChatManager()
-    tracker = PredictionAccuracyTracker(auth_manager.db_path)
+    tracker = PredictionAccuracyTracker(auth_manager.db_config)
     
     # Sidebar with study prompts
     with st.sidebar:

@@ -67,7 +67,6 @@ def render_assessment_page(user: User):
     
     This assessment helps us understand your expertise in key areas relevant to data analysis.
     Your responses will help us provide the most appropriate level of assistance for my bachlore thesis.
-    The following questions can be answered in german or english.
     
     **Duration:** Approximately 5 minutes
     
