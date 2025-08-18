@@ -100,9 +100,21 @@ def create_tables(db_path: str = "src/database/superstore.db"):
     conn.close()
     logging.info("Database tables created successfully")
 
+    # Ensure existing databases are migrated to include newly added columns
+    try:
+        migrate_database(db_path)
+    except Exception as e:
+        logging.warning(f"Database migration step after table creation failed or was unnecessary: {e}")
+
 def create_admin_user(db_path: str = "src/database/superstore.db"):
     """Create default admin user."""
     try:
+        # Make sure schema is up-to-date (adds columns like sql_expertise if missing)
+        try:
+            migrate_database(db_path)
+        except Exception as e:
+            logging.warning(f"Skipping migration before admin creation (possibly already migrated): {e}")
+
         # Docker-compatible imports
         try:
             from new_data_assistant_project.src.database.models import User

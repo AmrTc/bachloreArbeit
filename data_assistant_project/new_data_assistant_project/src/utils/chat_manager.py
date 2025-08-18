@@ -3,24 +3,26 @@ from typing import Optional, List, Dict, Any, Tuple
 import logging
 from datetime import datetime
 
-# Docker-compatible imports
+# PostgreSQL imports
 try:
-    from new_data_assistant_project.src.database.models import ChatSession, ExplanationFeedback, User
+    from new_data_assistant_project.src.database.postgres_models import ChatSession, ExplanationFeedback, User
     from new_data_assistant_project.src.agents.clt_cft_agent import CLTCFTAgent
-    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+    from new_data_assistant_project.src.database.postgres_config import PostgresConfig
 except ImportError:
-    from src.database.models import ChatSession, ExplanationFeedback, User
+    from src.database.postgres_models import ChatSession, ExplanationFeedback, User
     from src.agents.clt_cft_agent import CLTCFTAgent
-    from src.utils.path_utils import get_absolute_path
+    from src.database.postgres_config import PostgresConfig
 
 logger = logging.getLogger(__name__)
 
 class ChatManager:
-    """Manages isolated chat sessions for users with feedback collection."""
+    """Manages isolated chat sessions for users with feedback collection using PostgreSQL."""
     
     def __init__(self):
-        self.db_path = get_absolute_path('src/database/superstore.db')
-        self.agent = CLTCFTAgent(database_path=self.db_path)
+        # Initialize PostgreSQL configuration
+        self.postgres_config = PostgresConfig()
+        self.db_config = self.postgres_config.get_connection_params()
+        self.agent = CLTCFTAgent(database_config=self.db_config)
         
         # Initialize global session state for feedback tracking
         if 'pending_feedback' not in st.session_state:
@@ -48,8 +50,7 @@ class ChatManager:
         st.session_state[chat_key] = []
         # Also clear the database chat history for this user
         try:
-            from new_data_assistant_project.src.database.models import ChatSession
-            ChatSession.delete_user_sessions(self.db_path, user_id)
+            ChatSession.delete_user_sessions(self.db_config, user_id)
         except Exception as e:
             logger.error(f"Error clearing database chat history: {e}")
     
@@ -114,7 +115,7 @@ class ChatManager:
             )
     
     def load_user_chat_history(self, user_id: int, limit: int = 20):
-        """Load recent chat history for user from database."""
+        """Load recent chat history for user from PostgreSQL database."""
         try:
             # Check if we're switching users - if so, clear session state
             if st.session_state.current_user_id != user_id:
@@ -129,8 +130,8 @@ class ChatManager:
             if existing_history:
                 return  # Already loaded
             
-            # Load from database
-            sessions = ChatSession.get_user_sessions(self.db_path, user_id, limit)
+            # Load from PostgreSQL database
+            sessions = ChatSession.get_user_sessions(self.db_config, user_id, limit)
             
             chat_history = []
             for session in sessions:
@@ -195,7 +196,7 @@ class ChatManager:
             
             response_text = '\n\n'.join(response_parts)
             
-            # Save chat session to database
+            # Save chat session to PostgreSQL database
             chat_session = ChatSession.create_session(
                 user_id=user.id,
                 user_message=user_message,
@@ -203,7 +204,7 @@ class ChatManager:
                 sql_query=modified_result.sql_query if modified_result.success else None,
                 explanation_given=explanation_given
             )
-            chat_session.save(self.db_path)
+            chat_session.save(self.db_config)
             
             # Add to user-specific session state
             current_history = self._get_user_chat_history(user.id)
@@ -230,7 +231,7 @@ class ChatManager:
                     system_response=error_response,
                     explanation_given=False
                 )
-                chat_session.save(self.db_path)
+                chat_session.save(self.db_config)
                 return error_response, False, chat_session.id
             except:
                 return error_response, False, None
@@ -270,7 +271,7 @@ class ChatManager:
                     submit_feedback = st.form_submit_button("Submit Feedback")
                     
                     if submit_feedback:
-                        # Save feedback
+                        # Save feedback to PostgreSQL
                         feedback = ExplanationFeedback.create_feedback(
                             user_id=user_id,
                             session_id=session_id,
@@ -278,7 +279,7 @@ class ChatManager:
                             was_needed=was_needed == "Yes",
                             was_helpful=was_helpful == "Yes" if was_helpful else None
                         )
-                        feedback.save(self.db_path)
+                        feedback.save(self.db_config)
                         
                         feedback_state['submitted'] = True
                         st.success("Thank you for your feedback!")
@@ -294,14 +295,14 @@ class ChatManager:
                     submit_feedback = st.form_submit_button("Submit Feedback")
                     
                     if submit_feedback:
-                        # Save feedback
+                        # Save feedback to PostgreSQL
                         feedback = ExplanationFeedback.create_feedback(
                             user_id=user_id,
                             session_id=session_id,
                             explanation_given=False,
                             would_have_been_needed=would_have_been_needed == "Yes"
                         )
-                        feedback.save(self.db_path)
+                        feedback.save(self.db_config)
                         
                         feedback_state['submitted'] = True
                         st.success("Thank you for your feedback!")

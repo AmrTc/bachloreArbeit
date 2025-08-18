@@ -482,7 +482,7 @@ def render_assessment_page(user: User):
             if hasattr(st.session_state, 'user_demographics') and st.session_state.user_demographics:
                 demographics = st.session_state.user_demographics
                 user.update_user_demographics(
-                    db_path=getattr(AuthManager(), 'db_path', 'src/database/superstore.db'),
+                    db_config=auth_manager.db_config,
                     age=demographics.get('age'),
                     gender=demographics.get('gender'),
                     profession=demographics.get('profession'),
@@ -501,7 +501,7 @@ def render_assessment_page(user: User):
             }
             
             user.complete_comprehensive_assessment(
-                db_path=getattr(AuthManager(), 'db_path', 'src/database/superstore.db'),
+                db_config=auth_manager.db_config,
                 domain_scores=domain_scores
             )
             st.success("Assessment results and user information saved! Proceeding to Task Phase.")

@@ -1,4 +1,3 @@
-import sqlite3
 import pandas as pd
 import re
 from typing import Dict, List, Tuple, Optional
@@ -9,11 +8,13 @@ import logging
 import os
 from pathlib import Path
 
-# Docker-compatible imports
+# PostgreSQL imports
 try:
     from new_data_assistant_project.src.utils.my_config import MyConfig
+    from new_data_assistant_project.src.database.postgres_config import PostgresConfig
 except ImportError:
     from src.utils.my_config import MyConfig
+    from src.database.postgres_config import PostgresConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,16 +32,16 @@ class QueryResult:
 
 class ReActAgent:
     """
-    LLM-based ReAct Agent for SQL execution and database operations.
+    LLM-based ReAct Agent for SQL execution and database operations using PostgreSQL.
     Follows ReAct (Reasoning and Acting) paradigm for natural language to SQL conversion.
     """
     
-    def __init__(self, database_path: str = "src/database/superstore.db"):
+    def __init__(self, database_config: dict = None):
         """
-        Initialize ReAct Agent with database connection and API client.
+        Initialize ReAct Agent with PostgreSQL connection and API client.
         
         Args:
-            database_path: Path to SQLite database
+            database_config: PostgreSQL connection configuration dictionary
         """
         try:
             config = MyConfig()
@@ -53,7 +54,12 @@ class ReActAgent:
             logger.error(f"Failed to initialize Anthropic client: {e}")
             raise
 
-        self.database_path = database_path
+        # Use provided database config or get from MyConfig
+        if database_config:
+            self.database_config = database_config
+        else:
+            self.database_config = config.get_postgres_config()
+        
         self.model = "claude-sonnet-4-20250514"  # Using latest available Sonnet model
         
         # Initialize database schema cache
@@ -69,41 +75,59 @@ class ReActAgent:
         }
     
     def _get_database_schema(self) -> str:
-        """Extract database schema information for context (all tables)."""
+        """Extract PostgreSQL database schema information for context."""
         try:
-            with sqlite3.connect(self.database_path) as conn:
-                cursor = conn.cursor()
+            import psycopg2
+            conn = psycopg2.connect(**self.database_config)
+            cursor = conn.cursor()
+            
+            # Show all available tables
+            schema_info = "PostgreSQL Database Schema (All tables available):\n"
+            
+            # Get all table names
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name;
+            """)
+            tables = cursor.fetchall()
+            
+            for table in tables:
+                table_name = table[0]
+                schema_info += f"\nTable: {table_name}\n"
                 
-                # Show all available tables
-                schema_info = "Database Schema (All tables available):\n"
+                # Get table info
+                cursor.execute("""
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns 
+                    WHERE table_schema = 'public' AND table_name = %s
+                    ORDER BY ordinal_position;
+                """, (table_name,))
+                columns = cursor.fetchall()
                 
-                # Get all table names
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                tables = cursor.fetchall()
+                for col in columns:
+                    schema_info += f"  - {col[0]} ({col[1]})"
+                    if col[2] == 'NO':
+                        schema_info += " NOT NULL"
+                    if col[3]:
+                        schema_info += f" DEFAULT {col[3]}"
+                    schema_info += "\n"
                 
-                for table in tables:
-                    table_name = table[0]
-                    schema_info += f"\nTable: {table_name}\n"
-                    
-                    # Get table info
-                    cursor.execute(f"PRAGMA table_info({table_name});")
-                    columns = cursor.fetchall()
-                    
-                    for col in columns:
-                        schema_info += f"  - {col[1]} ({col[2]})\n"
-                    
-                    # Add sample data info
-                    try:
-                        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-                        row_count = cursor.fetchone()[0]
-                        schema_info += f"  Total rows: {row_count}\n"
-                    except:
-                        schema_info += f"  Could not count rows\n"
-                
-                return schema_info
+                # Add sample data info
+                try:
+                    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                    row_count = cursor.fetchone()[0]
+                    schema_info += f"  Total rows: {row_count}\n"
+                except:
+                    schema_info += f"  Could not count rows\n"
+            
+            cursor.close()
+            conn.close()
+            return schema_info
         except Exception as e:
-            logger.error(f"Error getting database schema: {e}")
-            return "Schema information unavailable"
+            logger.error(f"Error getting PostgreSQL database schema: {e}")
+            return "PostgreSQL schema information unavailable"
     
     def _assess_query_complexity(self, sql_query: str) -> int:
         """
@@ -129,7 +153,7 @@ class ReActAgent:
     
     def _clean_sql_query(self, sql_query: str) -> str:
         """
-        Comprehensive SQL query cleaning to remove markdown formatting and fix SQLite compatibility.
+        Comprehensive SQL query cleaning to remove markdown formatting and fix PostgreSQL compatibility.
         """
         # Remove markdown code blocks
         sql_query = re.sub(r'```sql\s*', '', sql_query, flags=re.MULTILINE | re.IGNORECASE)
@@ -180,9 +204,6 @@ class ReActAgent:
         
         # Remove leading/trailing whitespace and newlines
         sql_query = sql_query.strip('\n\r\t ')
-        
-        # Keep double quotes as they work in SQLite - no need to change them
-        # The issue was in content extraction, not the SQL itself
         
         return sql_query
     
@@ -258,7 +279,7 @@ class ReActAgent:
     
     def execute_query(self, user_query: str) -> QueryResult:
         """
-        Main method to process natural language query using ReAct approach.
+        Main method to process natural language query using ReAct approach with PostgreSQL.
         
         Args:
             user_query: Natural language data analysis request
@@ -289,37 +310,40 @@ class ReActAgent:
             # Step 3: Assess query complexity for CLT & CFT Agent
             complexity_score = self._assess_query_complexity(sql_query)
             
-            # Step 4: Execute SQL query
-            with sqlite3.connect(self.database_path) as conn:
-                try:
-                    # Execute query and get results
-                    result_df = pd.read_sql_query(sql_query, conn)
-                    
-                    execution_time = time.time() - start_time
-                    
-                    logger.info(f"Query executed successfully. Complexity: {complexity_score}")
-                    logger.info(f"Reasoning: {reasoning[:100]}...")
-                    
-                    return QueryResult(
-                        success=True,
-                        data=result_df,
-                        sql_query=sql_query,
-                        error_message=None,
-                        execution_time=execution_time,
-                        complexity_score=complexity_score
-                    )
-                    
-                except sqlite3.Error as e:
-                    # Log the actual error for debugging but return user-friendly message
-                    logger.error(f"SQL execution error: {str(e)}")
-                    return QueryResult(
-                        success=False,
-                        data=None,
-                        sql_query=sql_query,
-                        error_message="I encountered an issue while processing your request. Please try rephrasing your question or ask about different data.",
-                        execution_time=time.time() - start_time,
-                        complexity_score=complexity_score
-                    )
+            # Step 4: Execute SQL query using PostgreSQL
+            try:
+                import psycopg2
+                conn = psycopg2.connect(**self.database_config)
+                
+                # Execute query and get results
+                result_df = pd.read_sql_query(sql_query, conn)
+                conn.close()
+                
+                execution_time = time.time() - start_time
+                
+                logger.info(f"Query executed successfully. Complexity: {complexity_score}")
+                logger.info(f"Reasoning: {reasoning[:100]}...")
+                
+                return QueryResult(
+                    success=True,
+                    data=result_df,
+                    sql_query=sql_query,
+                    error_message=None,
+                    execution_time=execution_time,
+                    complexity_score=complexity_score
+                )
+                
+            except psycopg2.Error as e:
+                # Log the actual error for debugging but return user-friendly message
+                logger.error(f"PostgreSQL execution error: {str(e)}")
+                return QueryResult(
+                    success=False,
+                    data=None,
+                    sql_query=sql_query,
+                    error_message="I encountered an issue while processing your request. Please try rephrasing your question or ask about different data.",
+                    execution_time=time.time() - start_time,
+                    complexity_score=complexity_score
+                )
                     
         except Exception as e:
             # Log the actual error for debugging but return user-friendly message
@@ -374,40 +398,52 @@ class ReActAgent:
             return "Explanation unavailable due to error."
     
     def validate_sql_syntax(self, sql_query: str) -> Tuple[bool, str]:
-        """Validate SQL syntax without execution."""
+        """Validate SQL syntax without execution using PostgreSQL."""
         try:
-            with sqlite3.connect(self.database_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(f"EXPLAIN QUERY PLAN {sql_query}")
-                return True, "Valid SQL syntax"
-        except sqlite3.Error as e:
+            import psycopg2
+            conn = psycopg2.connect(**self.database_config)
+            cursor = conn.cursor()
+            cursor.execute(f"EXPLAIN {sql_query}")
+            cursor.close()
+            conn.close()
+            return True, "Valid SQL syntax"
+        except psycopg2.Error as e:
             return False, "Invalid SQL syntax"
     
     def get_sample_data(self, table_name: str = None, limit: int = 5) -> pd.DataFrame:
-        """Get sample data from the specified table or list all available tables."""
+        """Get sample data from the specified table or list all available tables using PostgreSQL."""
         try:
-            with sqlite3.connect(self.database_path) as conn:
-                if table_name:
-                    query = f"SELECT * FROM {table_name} LIMIT {limit}"
-                    return pd.read_sql_query(query, conn)
-                else:
-                    # List all available tables
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                    tables = cursor.fetchall()
-                    table_names = [table[0] for table in tables]
-                    
-                    # Create a DataFrame with table information
-                    table_info = []
-                    for table in table_names:
-                        try:
-                            cursor.execute(f"SELECT COUNT(*) FROM {table}")
-                            row_count = cursor.fetchone()[0]
-                            table_info.append({"table_name": table, "row_count": row_count})
-                        except:
-                            table_info.append({"table_name": table, "row_count": "Unknown"})
-                    
-                    return pd.DataFrame(table_info)
+            import psycopg2
+            conn = psycopg2.connect(**self.database_config)
+            
+            if table_name:
+                query = f"SELECT * FROM {table_name} LIMIT {limit}"
+                return pd.read_sql_query(query, conn)
+            else:
+                # List all available tables
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                    ORDER BY table_name;
+                """)
+                tables = cursor.fetchall()
+                table_names = [table[0] for table in tables]
+                
+                # Create a DataFrame with table information
+                table_info = []
+                for table in table_names:
+                    try:
+                        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                        row_count = cursor.fetchone()[0]
+                        table_info.append({"table_name": table, "row_count": row_count})
+                    except:
+                        table_info.append({"table_name": table, "row_count": "Unknown"})
+                
+                cursor.close()
+                conn.close()
+                return pd.DataFrame(table_info)
         except Exception as e:
             logger.error(f"Error getting sample data: {e}")
             return pd.DataFrame()
@@ -422,10 +458,10 @@ if __name__ == "__main__":
         print(f"API Key loaded: {'Yes' if api_key else 'No'}")
         print(f"API Key value: {api_key}")
         
-        # Initialize ReAct Agent
+        # Initialize ReAct Agent with PostgreSQL
         react_agent = ReActAgent()
         print("\nReAct Agent Initialization:")
-        print("Agent initialized successfully")
+        print("Agent initialized successfully with PostgreSQL")
         
         # Example queries for testing
         test_queries = [

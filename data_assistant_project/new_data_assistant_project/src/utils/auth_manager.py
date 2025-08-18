@@ -3,21 +3,23 @@ from typing import Optional, Dict, Tuple
 import logging
 from datetime import datetime
 
-# Docker-compatible imports
+# PostgreSQL imports
 try:
-    from new_data_assistant_project.src.database.models import User
-    from new_data_assistant_project.src.utils.path_utils import get_absolute_path
+    from new_data_assistant_project.src.database.postgres_models import User
+    from new_data_assistant_project.src.database.postgres_config import PostgresConfig
 except ImportError:
-    from src.database.models import User
-    from src.utils.path_utils import get_absolute_path
+    from src.database.postgres_models import User
+    from src.database.postgres_config import PostgresConfig
 
 logger = logging.getLogger(__name__)
 
 class AuthManager:
-    """Manages user authentication and session state."""
+    """Manages user authentication and session state using PostgreSQL."""
     
     def __init__(self):
-        self.db_path = get_absolute_path('src/database/superstore.db')
+        # Initialize PostgreSQL configuration
+        self.postgres_config = PostgresConfig()
+        self.db_config = self.postgres_config.get_connection_params()
         
         # Initialize session state
         if 'authenticated' not in st.session_state:
@@ -64,14 +66,14 @@ class AuthManager:
     
     def login(self, username: str, password: str) -> Tuple[bool, str]:
         """
-        Authenticate user.
+        Authenticate user using PostgreSQL.
         Returns: (success: bool, message: str)
         """
         try:
-            user = User.authenticate(self.db_path, username, password)
+            user = User.authenticate(self.db_config, username, password)
             
             if user:
-                user.update_login(self.db_path)
+                user.update_login(self.db_config)
                 st.session_state.authenticated = True
                 st.session_state.user = user
                 logger.info(f"User {username} logged in successfully")
@@ -86,7 +88,7 @@ class AuthManager:
     
     def register(self, username: str, password: str, confirm_password: str) -> Tuple[bool, str]:
         """
-        Register new user.
+        Register new user using PostgreSQL.
         Returns: (success: bool, message: str)
         """
         try:
@@ -101,12 +103,12 @@ class AuthManager:
                 return False, "Password must be at least 6 characters long"
             
             # Check if user already exists
-            if User.get_by_username(self.db_path, username):
+            if User.get_by_username(self.db_config, username):
                 return False, "Username already exists"
             
             # Create new user
             user = User.create_user(username, password)
-            user.save(self.db_path)
+            user.save(self.db_config)
             
             logger.info(f"New user registered: {username}")
             
@@ -187,66 +189,7 @@ class AuthManager:
             if cancel:
                 st.session_state.show_registration = False
                 st.rerun()
-    '''
-    def render_assessment_page(self) -> bool:
-        """
-        Render SQL expertise assessment page (now optional).
-        Returns: True if assessment completed, False otherwise
-        """
-        user = self.get_current_user()
-        if not user:
-            return False
-        
-        st.title("📊 SQL Expertise Assessment")
-        st.markdown("""
-        This assessment helps us provide personalized explanations tailored to your knowledge level.
-        The data for the assessment is also required for the evaluation.
-        """)
-        
-        # Show current assessment status
-        if user.has_completed_assessment:
-            st.success("✅ Assessment already completed!")
-            st.info(f"Your SQL expertise level: {user.sql_expertise_level}/5")
-            
-            if st.button("🔄 Retake Assessment"):
-                user.has_completed_assessment = False
-                user.save(self.db_path)
-                st.rerun()
-        else:
-            with st.form("assessment_form"):
-                st.subheader("1. SQL Experience")
-                sql_experience = st.selectbox(
-                    "How would you rate your SQL experience?",
-                    [
-                        "1 - Complete beginner (never used SQL)",
-                        "2 - Novice (basic SELECT statements)",
-                        "3 - Intermediate (JOINs, GROUP BY, subqueries)",
-                        "4 - Advanced (window functions, CTEs, optimization)",
-                        "5 - Expert (database design, complex analytics)"
-                    ]
-                )
-                
-                st.subheader("2. Additional Information")
-                background = st.text_area(
-                    "Tell us about your professional background (optional):",
-                    placeholder="e.g., Data Analyst, Software Developer, Business Analyst, Student..."
-                )
-                
-                submit_assessment = st.form_submit_button("Complete Assessment")
-                
-                if submit_assessment:
-                    # Extract numeric values
-                    sql_level = int(sql_experience.split(' - ')[0])
-                    
-                    # Complete assessment
-                    user.complete_assessment(self.db_path, sql_level)
-                    
-                    st.success("Assessment completed! You can now access all features.")
-                    st.balloons()
-                    st.rerun()
-        
-        return user.has_completed_assessment
-    '''
+    
     def render_user_info(self):
         """Render user info in sidebar."""
         user = self.get_current_user()
@@ -259,4 +202,15 @@ class AuthManager:
                 # Clean logout button
                 st.markdown("<div style='margin: 1rem 0;'></div>", unsafe_allow_html=True)
                 if st.button("Logout", type="secondary", use_container_width=True):
-                    self.logout() 
+                    self.logout()
+    
+    def test_connection(self) -> bool:
+        """Test PostgreSQL connection."""
+        try:
+            import psycopg2
+            conn = psycopg2.connect(**self.db_config)
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"PostgreSQL connection test failed: {e}")
+            return False 

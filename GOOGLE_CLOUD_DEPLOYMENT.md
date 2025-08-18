@@ -1,191 +1,247 @@
-# Google Cloud Deployment Guide
+# Google Cloud Deployment Guide - PostgreSQL Version
 
-Dieser Guide erklärt, wie Sie die Data Assistant Anwendung sicher auf Google Cloud deployen können.
+This guide explains how to deploy the Data Assistant application to Google Cloud using PostgreSQL as the database backend.
 
-## 🚀 Schnellstart
+## 🗄️ Database Architecture
 
-### 1. Voraussetzungen
+The application now uses **PostgreSQL** instead of SQLite for better scalability and cloud compatibility:
 
-- Google Cloud Projekt erstellt
-- gcloud CLI installiert und authentifiziert
-- Billing aktiviert
+- **Database**: Google Cloud SQL (PostgreSQL 17)
+- **Host**: 34.59.248.159
+- **Port**: 5432
+- **Database Name**: superstore
+- **User**: postgres
+- **SSL Mode**: require
 
-### 2. Projekt-ID setzen
+## 🚀 Prerequisites
+
+1. **Google Cloud Account**: Active Google Cloud project
+2. **gcloud CLI**: Installed and authenticated
+3. **PostgreSQL Instance**: Running Google Cloud SQL instance
+4. **API Keys**: Anthropic API key for AI functionality
+
+## 📋 Setup Steps
+
+### 1. Configure Google Cloud Project
 
 ```bash
-# Ersetzen Sie "your-project-id" mit Ihrer tatsächlichen Projekt-ID
-export PROJECT_ID="your-project-id"
-gcloud config set project $PROJECT_ID
+# Set your project ID
+gcloud config set project YOUR_PROJECT_ID
+
+# Enable required APIs
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable run.googleapis.com
+gcloud services enable secretmanager.googleapis.com
+gcloud services enable sqladmin.googleapis.com
 ```
 
-### 3. Secrets sicher einrichten
+### 2. Set Up Secrets
+
+Run the secrets setup script:
 
 ```bash
-# Führen Sie das Setup-Skript aus (im Root-Verzeichnis)
 chmod +x setup_secrets.sh
 ./setup_secrets.sh
 ```
 
-**Wichtig:** Geben Sie Ihren Anthropic API-Key ein, wenn Sie dazu aufgefordert werden.
+This will create:
+- `anthropic-api-key`: Your Anthropic API key
+- `postgres-host`: PostgreSQL host address
+- `postgres-database`: Database name
+- `postgres-user`: Database username
+- `postgres-password`: Database password
+- `postgres-port`: Database port
+- `postgres-sslmode`: SSL mode
 
-### 4. Deployment
+### 3. Configure PostgreSQL Connection
+
+The application automatically uses these environment variables:
 
 ```bash
-# Führen Sie das Deployment-Skript aus (im Root-Verzeichnis)
+export PG_HOST="34.59.248.159"
+export PG_PORT="5432"
+export PG_DATABASE="superstore"
+export PG_USER="postgres"
+export PG_PASSWORD="your_password"
+export PG_SSLMODE="require"
+export PG_CONNECT_TIMEOUT="30"
+```
+
+### 4. Deploy the Application
+
+Use the deployment script:
+
+```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-## 🔐 Sichere Secrets-Verwaltung
-
-### Option 1: Google Secret Manager (Empfohlen)
-
-Der Anthropic API-Key wird sicher in Google Secret Manager gespeichert:
+Or manually with Cloud Build:
 
 ```bash
-# Secret erstellen
-echo "your-api-key" | gcloud secrets create anthropic-api-key --data-file=-
-
-# Secret in der Anwendung verwenden
-gcloud secrets versions access latest --secret=anthropic-api-key
-```
-
-### Option 2: Umgebungsvariablen (Nur für Entwicklung)
-
-```bash
-# Lokale Entwicklung
-export ANTHROPIC_API_KEY="your-api-key"
-cd data_assistant_project/new_data_assistant_project
-streamlit run streamlit_entry.py
-```
-
-## 🐳 Docker & Cloud Build
-
-### Automatischer Build mit Cloud Build
-
-```bash
-# Standard Build (im Root-Verzeichnis)
 gcloud builds submit --config cloudbuild.yaml
+```
 
-# Mit Secrets (empfohlen)
+## 🔧 Configuration Files
+
+### Dockerfile
+- Uses Python 3.12 slim image
+- Installs PostgreSQL client libraries (`libpq-dev`)
+- Copies application code to `/app` directory
+- Runs as non-root user for security
+
+### cloudbuild.yaml
+- Builds Docker image from root directory
+- Pushes to Google Container Registry
+- Tags with commit SHA and 'latest'
+
+### cloudbuild.secrets.yaml
+- Includes secret management
+- Sets PostgreSQL environment variables
+- Deploys to Cloud Run with proper configuration
+
+## 🌐 Deployment Options
+
+### Option 1: Basic Deployment
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
+
+### Option 2: Deployment with Secrets
+```bash
 gcloud builds submit --config cloudbuild.secrets.yaml
 ```
 
-### Manueller Build
-
-```bash
-# Docker Image bauen
-cd data_assistant_project/new_data_assistant_project
-docker build -t gcr.io/$PROJECT_ID/data-assistant .
-
-# Image pushen
-docker push gcr.io/$PROJECT_ID/data-assistant
-```
-
-## 🌐 Cloud Run Deployment
-
-### Automatisches Deployment
-
-Das `deploy.sh` Skript (im Root-Verzeichnis):
-- Baut das Docker Image mit Cloud Build
-- Deployed auf Cloud Run
-- Konfiguriert die notwendigen Umgebungsvariablen
-- Setzt die richtigen Ressourcenlimits
-
-### Manuelles Deployment
-
+### Option 3: Manual Cloud Run Deployment
 ```bash
 gcloud run deploy data-assistant \
-    --image gcr.io/$PROJECT_ID/data-assistant \
+    --image gcr.io/YOUR_PROJECT_ID/data-assistant:latest \
+    --region us-central1 \
     --platform managed \
-    --region europe-west1 \
     --allow-unauthenticated \
     --port 8080 \
     --memory 2Gi \
     --cpu 1 \
-    --max-instances 10
+    --max-instances 10 \
+    --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest \
+    --set-env-vars PG_HOST=34.59.248.159,PG_PORT=5432,PG_DATABASE=superstore,PG_USER=postgres,PG_SSLMODE=require
 ```
 
-## 🔧 Konfiguration
+## 🔍 Monitoring and Logs
 
-### Umgebungsvariablen
-
-- `STREAMLIT_SERVER_PORT`: 8080
-- `STREAMLIT_SERVER_ADDRESS`: 0.0.0.0
-- `ANTHROPIC_API_KEY`: Aus Secret Manager
-
-### Ressourcenlimits
-
-- **Memory**: 2Gi
-- **CPU**: 1 vCPU
-- **Max Instances**: 10
-- **Port**: 8080
-
-## 📁 Dateistruktur
-
-```
-bachloreArbeit/                          # Root Repository
-├── cloudbuild.yaml                      # Standard Cloud Build (Root)
-├── cloudbuild.secrets.yaml              # Cloud Build mit Secrets (Root)
-├── .dockerignore                        # Docker Build Optimierung (Root)
-├── deploy.sh                            # Deployment-Skript (Root)
-├── setup_secrets.sh                     # Secret Manager Setup (Root)
-├── GOOGLE_CLOUD_DEPLOYMENT.md          # Diese Anleitung
-└── data_assistant_project/
-    └── new_data_assistant_project/
-        ├── Dockerfile                   # Standard Docker Image
-        ├── Dockerfile.secrets           # Docker Image mit Secret Manager
-        ├── streamlit_entry.py           # Hauptanwendung
-        └── requirements.txt             # Python Dependencies
+### View Application Logs
+```bash
+gcloud logging read 'resource.type=cloud_run_revision' --limit=50
 ```
 
-## 🚨 Wichtige Hinweise
+### Monitor Cloud Run Service
+```bash
+gcloud run services describe data-assistant --region us-central1
+```
 
-1. **Cloud Build Dateien müssen im Root-Verzeichnis liegen**
-2. **Docker-Dateien können im Unterverzeichnis liegen**
-3. **Verwenden Sie die Root-Level Skripte für Deployment**
-4. **Nie API-Keys in den Code committen**
+### Check Build Status
+```bash
+gcloud builds list --limit=10
+```
 
-## 🚨 Sicherheitshinweise
+## 🚨 Troubleshooting
 
-1. **Nie API-Keys in den Code committen**
-2. **Verwenden Sie Secret Manager für Produktionsumgebungen**
-3. **Setzen Sie die richtigen IAM-Berechtigungen**
-4. **Überwachen Sie die API-Nutzung**
+### Common Issues
 
-## 🔍 Troubleshooting
+1. **PostgreSQL Connection Failed**
+   - Verify the instance is running
+   - Check firewall rules allow connections
+   - Ensure SSL mode is set to 'require'
 
-### Häufige Probleme
+2. **Build Failures**
+   - Check Dockerfile syntax
+   - Verify all required files are present
+   - Check Cloud Build logs for detailed errors
 
-1. **"We could not find a valid build file"**: 
-   - Stellen Sie sicher, dass `cloudbuild.yaml` im Root-Verzeichnis liegt
-   - Überprüfen Sie den Pfad zur Dockerfile
+3. **Runtime Errors**
+   - Verify all secrets are properly set
+   - Check environment variables
+   - Review application logs
 
-2. **Permission Denied**: IAM-Berechtigungen prüfen
-3. **Build Failed**: Dockerfile und .dockerignore überprüfen
-4. **Secret Access Error**: Secret Manager Berechtigungen prüfen
-
-### Logs anzeigen
+### Debug Commands
 
 ```bash
-# Cloud Build Logs
-gcloud builds log [BUILD_ID]
+# Test PostgreSQL connection
+gcloud sql connect superstore-instanz --user=postgres
 
-# Cloud Run Logs
-gcloud logs read --service=data-assistant --limit=50
+# Check secrets
+gcloud secrets list
+
+# View build logs
+gcloud builds log BUILD_ID
+
+# Test Cloud Run service
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+     https://data-assistant-us-central1-YOUR_PROJECT_ID.run.app
 ```
 
-## 📞 Support
+## 🔄 Updating the Application
 
-Bei Problemen:
-1. Google Cloud Console Logs prüfen
-2. gcloud CLI Debug-Ausgaben aktivieren
-3. Docker Image lokal testen
-4. Überprüfen Sie, ob Sie im richtigen Verzeichnis sind
+To update the application:
+
+1. **Commit your changes** to Git
+2. **Run the deployment script** again:
+   ```bash
+   ./deploy.sh
+   ```
+
+The script will:
+- Build a new Docker image
+- Push to Container Registry
+- Deploy to Cloud Run
+- Update the service automatically
+
+## 📊 Performance Considerations
+
+### PostgreSQL Optimization
+- Use connection pooling for high traffic
+- Implement proper indexing on frequently queried columns
+- Monitor query performance with `EXPLAIN ANALYZE`
+
+### Cloud Run Optimization
+- Set appropriate memory and CPU limits
+- Use concurrency settings for better resource utilization
+- Monitor cold start times
+
+## 🔐 Security Best Practices
+
+1. **Secrets Management**
+   - Never commit secrets to version control
+   - Use Google Secret Manager for sensitive data
+   - Rotate secrets regularly
+
+2. **Network Security**
+   - Use SSL connections to PostgreSQL
+   - Restrict database access to Cloud Run IPs
+   - Implement proper IAM roles
+
+3. **Application Security**
+   - Run containers as non-root users
+   - Keep dependencies updated
+   - Implement proper authentication
+
+## 📚 Additional Resources
+
+- [Google Cloud SQL Documentation](https://cloud.google.com/sql/docs)
+- [Cloud Run Best Practices](https://cloud.google.com/run/docs/best-practices)
+- [Secret Manager Guide](https://cloud.google.com/secret-manager/docs)
+- [Cloud Build Documentation](https://cloud.google.com/cloud-build/docs)
+
+## 🆘 Support
+
+If you encounter issues:
+
+1. Check the troubleshooting section above
+2. Review Cloud Build and Cloud Run logs
+3. Verify PostgreSQL connection and configuration
+4. Ensure all required APIs are enabled
+5. Check IAM permissions for your service account
 
 ---
 
-**Wichtig**: 
-- Ersetzen Sie immer `your-project-id` mit Ihrer tatsächlichen Google Cloud Projekt-ID!
-- Führen Sie die Skripte im Root-Verzeichnis (`bachloreArbeit/`) aus!
-- Die Cloud Build Dateien müssen im Root-Verzeichnis liegen!
+**Note**: This deployment uses PostgreSQL for production scalability. The application automatically handles database connections and migrations.

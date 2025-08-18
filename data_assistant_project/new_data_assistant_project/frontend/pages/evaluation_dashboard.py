@@ -108,10 +108,10 @@ def render_user_analytics_tab():
     
     # Get real user data
     auth_manager = AuthManager()
-    db_path = getattr(auth_manager, 'db_path', 'src/database/superstore.db')
+    db_config = auth_manager.db_config
     
     try:
-        users = User.get_all_users(db_path)
+        users = User.get_all_users(db_config)
         
         if users:
             # User role distribution
@@ -297,15 +297,18 @@ def render_feedback_analysis_tab():
     # Get database path
     try:
         auth_manager = AuthManager()
-        db_path = getattr(auth_manager, 'db_path', 'src/database/superstore.db')
+        db_config = auth_manager.db_config
     except:
-        db_path = 'src/database/superstore.db'
+        # Fallback to default PostgreSQL config
+        from src.database.postgres_config import PostgresConfig
+        pg_config = PostgresConfig()
+        db_config = pg_config.get_connection_params()
     
     # Explanation Feedback Analysis
     st.markdown("### 📝 Explanation Feedback Analysis")
     
     if ExplanationFeedback:
-        feedback_data = ExplanationFeedback.get_all_feedback(db_path)
+        feedback_data = ExplanationFeedback.get_all_feedback(db_config)
         
         if feedback_data:
             # Convert to DataFrame for analysis
@@ -342,7 +345,7 @@ def render_feedback_analysis_tab():
     st.markdown("### 🔬 Comprehensive Research Feedback Analysis")
     
     if ComprehensiveFeedback:
-        comprehensive_feedback_data = ComprehensiveFeedback.get_all_feedback(db_path)
+        comprehensive_feedback_data = ComprehensiveFeedback.get_all_feedback(db_config)
         
         if comprehensive_feedback_data:
             # Convert to DataFrame for analysis

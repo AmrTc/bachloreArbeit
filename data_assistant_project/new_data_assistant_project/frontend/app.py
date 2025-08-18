@@ -61,27 +61,24 @@ def robust_import():
     try:
         from new_data_assistant_project.src.utils.auth_manager import AuthManager
         from new_data_assistant_project.src.utils.chat_manager import ChatManager
-        from new_data_assistant_project.src.database.schema import create_tables, create_admin_user
         print("✅ Strategy 1: Absolute imports successful")
-        return AuthManager, ChatManager, create_tables, create_admin_user
+        return AuthManager, ChatManager
     except ImportError as e:
         print(f"❌ Absolute imports failed: {e}")
     
     try:
         from src.utils.auth_manager import AuthManager
         from src.utils.chat_manager import ChatManager
-        from src.database.schema import create_tables, create_admin_user
         print("✅ Strategy 2: Direct imports successful")
-        return AuthManager, ChatManager, create_tables, create_admin_user
+        return AuthManager, ChatManager
     except ImportError as e:
         print(f"❌ Direct imports failed: {e}")
     
     try:
         from src.utils.auth_manager import AuthManager
         from src.utils.chat_manager import ChatManager
-        from src.database.schema import create_tables, create_admin_user
         print("✅ Strategy 3: Relative imports successful")
-        return AuthManager, ChatManager, create_tables, create_admin_user
+        return AuthManager, ChatManager
     except ImportError as e:
         print(f"❌ Relative imports failed: {e}")
     
@@ -92,16 +89,15 @@ def robust_import():
     try:
         from utils.auth_manager import AuthManager
         from utils.chat_manager import ChatManager
-        from database.schema import create_tables, create_admin_user
         print("✅ Strategy 4: Manual path imports successful")
-        return AuthManager, ChatManager, create_tables, create_admin_user
+        return AuthManager, ChatManager
     except ImportError as e:
         print(f"❌ Manual path imports failed: {e}")
         st.error(f"❌ Could not import required modules: {e}")
         st.stop()
 
 # Import modules
-AuthManager, ChatManager, create_tables, create_admin_user = robust_import()
+AuthManager, ChatManager = robust_import()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -110,7 +106,7 @@ logger = logging.getLogger(__name__)
 import traceback
 
 def initialize_system():
-    """Initialize system by checking directories and creating tables."""
+    """Initialize system by checking PostgreSQL connection and managers."""
     try:
         # Check required directories
         required_dirs = ['src', 'src/database', 'frontend']
@@ -125,18 +121,19 @@ def initialize_system():
             logger.error(f"Current directory contents: {os.listdir('.')}")
             return False
         
-        # Check database file
-        db_path = "src/database/superstore.db"
-        if os.path.exists(db_path):
-            logger.info(f"✅ Database file exists: {db_path}")
-        else:
-            logger.warning(f"⚠️ Database file will be created: {db_path}")
-            
-        # Initialize database
-        create_tables()
-        create_admin_user()
+        # Test PostgreSQL connection
+        try:
+            auth_manager = AuthManager()
+            if auth_manager.test_connection():
+                logger.info("✅ PostgreSQL connection successful")
+            else:
+                logger.error("❌ PostgreSQL connection failed")
+                return False
+        except Exception as e:
+            logger.error(f"❌ PostgreSQL connection test failed: {e}")
+            return False
         
-        logger.info("🎯 System initialized successfully!")
+        logger.info("🎯 System initialized successfully with PostgreSQL!")
         return True
         
     except Exception as e:

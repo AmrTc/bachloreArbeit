@@ -1,44 +1,102 @@
 #!/bin/bash
 
-# Script to securely store Anthropic API Key in Google Secret Manager
-PROJECT_ID="your-project-id"
-SECRET_NAME="anthropic-api-key"
+# PostgreSQL-based secrets setup script for Google Cloud
+# This script sets up the Anthropic API key and PostgreSQL configuration in Google Secret Manager
 
-echo "🔐 Setting up secure storage for Anthropic API Key..."
+set -e
+
+echo "🔐 Setting up PostgreSQL-based secrets for Google Cloud..."
 
 # Check if gcloud is installed
 if ! command -v gcloud &> /dev/null; then
-    echo "❌ gcloud CLI is not installed. Please install it first."
+    echo "❌ Error: gcloud CLI is not installed. Please install it first."
     exit 1
 fi
 
-# Set the project
-echo "📋 Setting project to: $PROJECT_ID"
-gcloud config set project $PROJECT_ID
+# Check if user is authenticated
+if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+    echo "❌ Error: Not authenticated with gcloud. Please run 'gcloud auth login' first."
+    exit 1
+fi
+
+# Get project ID
+PROJECT_ID=$(gcloud config get-value project)
+if [ -z "$PROJECT_ID" ]; then
+    echo "❌ Error: No project ID set. Please run 'gcloud config set project PROJECT_ID' first."
+    exit 1
+fi
+
+echo "📋 Project ID: $PROJECT_ID"
 
 # Enable Secret Manager API
 echo "🔧 Enabling Secret Manager API..."
 gcloud services enable secretmanager.googleapis.com
 
-# Create the secret
-echo "🔑 Creating secret: $SECRET_NAME"
-echo "Please enter your Anthropic API Key (it will be hidden):"
-read -s API_KEY
+# Create the Anthropic API key secret
+echo "🔑 Creating Anthropic API key secret..."
+echo "Please enter your Anthropic API key:"
+read -s ANTHROPIC_API_KEY
+
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "❌ Error: API key cannot be empty"
+    exit 1
+fi
 
 # Create the secret
-echo "$API_KEY" | gcloud secrets create $SECRET_NAME --data-file=-
+echo "$ANTHROPIC_API_KEY" | gcloud secrets create anthropic-api-key --data-file=-
 
-echo "✅ Secret created successfully!"
-echo "📝 To access this secret in your application, use:"
-echo "gcloud secrets versions access latest --secret=$SECRET_NAME"
+echo "✅ Anthropic API key secret created successfully!"
 
-# Grant access to Cloud Run service account
-echo "🔓 Granting access to Cloud Run service account..."
-PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-SERVICE_ACCOUNT="$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+# Create PostgreSQL configuration secrets
+echo "🗄️ Creating PostgreSQL configuration secrets..."
 
-gcloud secrets add-iam-policy-binding $SECRET_NAME \
-    --member="serviceAccount:$SERVICE_ACCOUNT" \
-    --role="roles/secretmanager.secretAccessor"
+# Create PostgreSQL host secret
+echo "34.59.248.159" | gcloud secrets create postgres-host --data-file=-
+echo "✅ PostgreSQL host secret created"
 
-echo "✅ Access granted to Cloud Run service account!"
+# Create PostgreSQL database secret
+echo "superstore" | gcloud secrets create postgres-database --data-file=-
+echo "✅ PostgreSQL database secret created"
+
+# Create PostgreSQL user secret
+echo "postgres" | gcloud secrets create postgres-user --data-file=-
+echo "✅ PostgreSQL user secret created"
+
+# Create PostgreSQL password secret
+echo "Please enter your PostgreSQL password:"
+read -s POSTGRES_PASSWORD
+
+if [ -z "$POSTGRES_PASSWORD" ]; then
+    echo "❌ Error: PostgreSQL password cannot be empty"
+    exit 1
+fi
+
+echo "$POSTGRES_PASSWORD" | gcloud secrets create postgres-password --data-file=-
+echo "✅ PostgreSQL password secret created"
+
+# Create PostgreSQL port secret
+echo "5432" | gcloud secrets create postgres-port --data-file=-
+echo "✅ PostgreSQL port secret created"
+
+# Create PostgreSQL SSL mode secret
+echo "require" | gcloud secrets create postgres-sslmode --data-file=-
+echo "✅ PostgreSQL SSL mode secret created"
+
+echo ""
+echo "🎉 All secrets created successfully!"
+echo ""
+echo "📋 Created secrets:"
+echo "   - anthropic-api-key"
+echo "   - postgres-host"
+echo "   - postgres-database"
+echo "   - postgres-user"
+echo "   - postgres-password"
+echo "   - postgres-port"
+echo "   - postgres-sslmode"
+echo ""
+echo "🔧 To use these secrets in Cloud Run, reference them like:"
+echo "   --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest"
+echo "   --set-secrets PG_PASSWORD=postgres-password:latest"
+echo ""
+echo "📚 For more information, see:"
+echo "   https://cloud.google.com/run/docs/configuring/secrets"

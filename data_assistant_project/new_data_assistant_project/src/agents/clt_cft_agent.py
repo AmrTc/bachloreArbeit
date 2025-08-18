@@ -68,13 +68,13 @@ class CLTCFTAgent:
     Determines when users need explanations based on cognitive assessment.
     """
     
-    def __init__(self, user_profiles_path: str = "user_profiles.json", database_path: str = "src/database/superstore.db"):
+    def __init__(self, user_profiles_path: str = "user_profiles.json", database_config: dict = None):
         """
         Initialize CLT & CFT Agent with Claude Sonnet 4 API and ReAct Agent.
         
         Args:
             user_profiles_path: Path to store user profiles
-            database_path: Path to SQLite database for ReAct Agent
+            database_config: PostgreSQL connection configuration dictionary
         """
         try:
             config = MyConfig()
@@ -91,10 +91,15 @@ class CLTCFTAgent:
         self.user_profiles_path = user_profiles_path
         self.user_profiles: Dict[str, UserProfile] = {}
         
-        # Initialize ReAct Agent for SQL query execution
+        # Initialize ReAct Agent for SQL query execution with PostgreSQL
         try:
-            self.react_agent = ReActAgent(database_path=database_path)
-            logger.info("Successfully initialized ReAct Agent")
+            if database_config:
+                self.react_agent = ReActAgent(database_config=database_config)
+            else:
+                # Use default PostgreSQL configuration
+                pg_config = config.get_postgres_config()
+                self.react_agent = ReActAgent(database_config=pg_config)
+            logger.info("Successfully initialized ReAct Agent with PostgreSQL")
         except Exception as e:
             logger.error(f"Failed to initialize ReAct Agent: {e}")
             raise

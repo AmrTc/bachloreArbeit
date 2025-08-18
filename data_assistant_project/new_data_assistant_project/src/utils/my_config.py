@@ -86,7 +86,20 @@ class MyConfig:
 
         # Store
         self.api_key = api_key
-        self.database_path = os.getenv("DATABASE_PATH", "src/database/superstore.db")
+        
+        # PostgreSQL configuration (replaces SQLite)
+        self.postgres_config = {
+            'host': os.getenv('PG_HOST', '34.59.248.159'),
+            'port': int(os.getenv('PG_PORT', '5432')),
+            'database': os.getenv('PG_DATABASE', 'superstore'),
+            'user': os.getenv('PG_USER', 'postgres'),
+            'password': os.getenv('PG_PASSWORD', '<zdG$DLpmG,~p3A'),
+            'sslmode': os.getenv('PG_SSLMODE', 'require'),
+            'connect_timeout': int(os.getenv('PG_CONNECT_TIMEOUT', '30'))
+        }
+        
+        # Database type indicator
+        self.database_type = "postgresql"
         
     def _get_secret_from_github(self) -> str:
         """
@@ -157,9 +170,18 @@ class MyConfig:
             )
         return self.api_key
     
-    def get_database_path(self) -> str:
-        """Get the database path."""
-        return self.database_path
+    def get_postgres_config(self) -> dict:
+        """Get PostgreSQL connection configuration."""
+        return self.postgres_config.copy()
+    
+    def get_database_type(self) -> str:
+        """Get the database type (postgresql)."""
+        return self.database_type
+    
+    def get_database_url(self) -> str:
+        """Get PostgreSQL connection URL."""
+        config = self.postgres_config
+        return f"postgresql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}?sslmode={config['sslmode']}"
 
 if __name__ == "__main__":
     try:
@@ -192,10 +214,16 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Secret Manager error: {e}")
         
-        # Test database path
-        db_path = config.get_database_path()
-        print("\nDatabase Path Test:")
-        print(f"Database path: {db_path}")
+        # Test PostgreSQL configuration
+        print("\nPostgreSQL Configuration Test:")
+        pg_config = config.get_postgres_config()
+        print(f"Host: {pg_config['host']}")
+        print(f"Port: {pg_config['port']}")
+        print(f"Database: {pg_config['database']}")
+        print(f"User: {pg_config['user']}")
+        print(f"SSL Mode: {pg_config['sslmode']}")
+        print(f"Database Type: {config.get_database_type()}")
+        print(f"Database URL: {config.get_database_url()}")
         
         # Test local secrets.toml
         secrets_path = Path(__file__).parent.parent.parent / ".streamlit" / "secrets.toml"
@@ -209,7 +237,8 @@ if __name__ == "__main__":
         print(f"GITHUB_ANTHROPIC_API_KEY: {'Set' if os.getenv('GITHUB_ANTHROPIC_API_KEY') else 'Not set'}")
         print(f"CODESPACES_ANTHROPIC_API_KEY: {'Set' if os.getenv('CODESPACES_ANTHROPIC_API_KEY') else 'Not set'}")
         print(f"Secret Manager Resource: projects/315388300473/secrets/anthropic-api-key")
-        print(f"DATABASE_PATH: {os.getenv('DATABASE_PATH', 'Not set')}")
+        print(f"PG_HOST: {os.getenv('PG_HOST', 'Not set')}")
+        print(f"PG_DATABASE: {os.getenv('PG_DATABASE', 'Not set')}")
         
     except Exception as e:
         print(f"\nError occurred: {str(e)}")

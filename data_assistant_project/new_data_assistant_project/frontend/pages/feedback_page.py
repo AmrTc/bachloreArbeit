@@ -230,7 +230,7 @@ def render_feedback_page(user: User):
                 return
             
             # Get database path from auth manager
-            db_path = getattr(auth_manager, 'db_path', 'src/database/superstore.db')
+            db_config = auth_manager.db_config
             
             # Create and save comprehensive feedback
             feedback = ComprehensiveFeedback.create_feedback(
@@ -251,8 +251,8 @@ def render_feedback_page(user: User):
                 recommendation_index=st.session_state.feedback_responses.get('recommendation_index', 0)
             )
             
-            # Save to database
-            feedback.save(db_path)
+            # Save to PostgreSQL database
+            feedback.save(db_config)
             
             st.success("✅ Thank you for your valuable feedback! Your responses have been recorded in our research database.")
             st.session_state.feedback_completed = True
