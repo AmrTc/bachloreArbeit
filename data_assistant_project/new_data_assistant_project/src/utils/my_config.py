@@ -17,8 +17,8 @@ class MyConfig:
     def __init__(self):
         """Initialize configuration.
 
-        Priority order for API key:
-        1. GitHub Repository Secrets (CI/CD, Codespaces)
+        Priority order for API key (optimized for Cloud Run):
+        1. Environment Variables (Cloud Run, GitHub Codespaces, CI/CD)
         2. Google Secret Manager (production - Cloud Run)
         3. Streamlit Cloud secrets (production - Streamlit Cloud)
         4. Local .streamlit/secrets.toml (development)
@@ -26,16 +26,16 @@ class MyConfig:
 
         api_key = None
         
-        # Try GitHub Repository Secrets first (CI/CD, Codespaces)
+        # Try Environment Variables first (works in Cloud Run, Codespaces, CI/CD)
         try:
-            api_key = self._get_secret_from_github()
+            api_key = self._get_secret_from_environment()
             if api_key:
-                print("✅ API Key loaded from GitHub Repository Secrets")
+                print("✅ API Key loaded from Environment Variables")
         except Exception as e:
-            print(f"⚠️ GitHub Secrets not available: {e}")
+            print(f"⚠️ Environment Variables not available: {e}")
             # Continue to next method
         
-        # If no API key from GitHub, try Google Secret Manager
+        # If no API key from Environment, try Google Secret Manager
         if not api_key:
             try:
                 api_key = self._get_secret_from_secret_manager()
@@ -101,31 +101,35 @@ class MyConfig:
         # Database type indicator
         self.database_type = "postgresql"
         
-    def _get_secret_from_github(self) -> str:
+    def _get_secret_from_environment(self) -> str:
         """
-        Get the Anthropic API key from GitHub Repository Secrets.
-        This is the preferred method for CI/CD, Codespaces, and local development.
+        Get the Anthropic API key from Environment Variables.
+        This works in Cloud Run, GitHub Codespaces, CI/CD, and local development.
         """
         try:
-            # Check for GitHub Secrets environment variable
+            # Check for standard environment variable (Cloud Run, Codespaces)
             api_key = os.getenv("ANTHROPIC_API_KEY")
             if api_key:
+                print(f"Found API key in ANTHROPIC_API_KEY environment variable")
                 return api_key
             
             # Check for other common environment variable names
             api_key = os.getenv("GITHUB_ANTHROPIC_API_KEY")
             if api_key:
+                print(f"Found API key in GITHUB_ANTHROPIC_API_KEY environment variable")
                 return api_key
                 
             # Check for Codespaces specific environment variable
             api_key = os.getenv("CODESPACES_ANTHROPIC_API_KEY")
             if api_key:
+                print(f"Found API key in CODESPACES_ANTHROPIC_API_KEY environment variable")
                 return api_key
                 
+            print("No API key found in environment variables")
             return None
             
         except Exception as e:
-            print(f"⚠️ Error accessing GitHub Secrets: {e}")
+            print(f"⚠️ Error accessing environment variables: {e}")
             return None
         
     def _get_secret_from_secret_manager(self) -> str:
@@ -137,8 +141,15 @@ class MyConfig:
             # Import the Secret Manager client library
             from google.cloud import secretmanager
             
-            # Use the specific resource name for this project
-            resource_name = "projects/315388300473/secrets/anthropic-api-key"
+            # Get the current project ID dynamically
+            project_id = self._get_gcp_project_id()
+            if not project_id:
+                print("⚠️ Could not determine GCP project ID")
+                return None
+            
+            # Use the project-specific resource name
+            resource_name = f"projects/{project_id}/secrets/anthropic-api-key"
+            print(f"Trying to access Secret Manager: {resource_name}")
             
             # Create the Secret Manager client
             client = secretmanager.SecretManagerServiceClient()
@@ -147,7 +158,9 @@ class MyConfig:
             response = client.access_secret_version(request={"name": f"{resource_name}/versions/latest"})
             
             # Return the secret payload
-            return response.payload.data.decode("UTF-8")
+            api_key = response.payload.data.decode("UTF-8")
+            print("Successfully retrieved API key from Secret Manager")
+            return api_key
             
         except ImportError:
             print("⚠️ google-cloud-secret-manager not installed")
@@ -155,6 +168,32 @@ class MyConfig:
         except Exception as e:
             print(f"⚠️ Error accessing Secret Manager: {e}")
             return None
+    
+    def _get_gcp_project_id(self) -> str:
+        """Get the current GCP project ID dynamically."""
+        try:
+            # Try environment variable first
+            project_id = os.getenv('GOOGLE_CLOUD_PROJECT') or os.getenv('GCP_PROJECT')
+            if project_id:
+                return project_id
+            
+            # Try metadata server (works in Cloud Run, Compute Engine, etc.)
+            import requests
+            metadata_server = "http://metadata.google.internal/computeMetadata/v1/"
+            metadata_flavor = {'Metadata-Flavor': 'Google'}
+            response = requests.get(
+                metadata_server + 'project/project-id', 
+                headers=metadata_flavor, 
+                timeout=5
+            )
+            if response.status_code == 200:
+                return response.text.strip()
+                
+        except Exception as e:
+            print(f"Could not get GCP project ID: {e}")
+        
+        # Fallback to hardcoded value (your project)
+        return "impactful-study-469120-m5"
         
     def get_api_key(self) -> str:
         """Get the Anthropic API key."""
@@ -162,11 +201,12 @@ class MyConfig:
             raise ValueError(
                 "ANTHROPIC_API_KEY not configured.\n"
                 "Set it in one of these locations:\n"
-                "1. GitHub Repository Secrets (CI/CD, Codespaces)\n"
-                "2. Google Secret Manager (production - Cloud Run)\n"
-                "3. Streamlit Cloud secrets (production - Streamlit Cloud)\n"
+                "1. Environment Variable: ANTHROPIC_API_KEY (Cloud Run, Codespaces)\n"
+                "2. Google Secret Manager: anthropic-api-key secret\n"
+                "3. Streamlit Cloud secrets\n"
                 "4. .streamlit/secrets.toml (local development)\n"
-                f"CWD: {Path.cwd()}"
+                f"CWD: {Path.cwd()}\n"
+                f"Environment check: ANTHROPIC_API_KEY = {'SET' if os.getenv('ANTHROPIC_API_KEY') else 'NOT SET'}"
             )
         return self.api_key
     
@@ -194,15 +234,15 @@ if __name__ == "__main__":
         print(f"API Key loaded successfully: {'Yes' if api_key else 'No'}")
         print(f"API Key value: {api_key[:8]}..." if api_key else "No API key found")
         
-        # Test GitHub Secrets access
-        print("\nGitHub Secrets Test:")
+        # Test Environment Variables access
+        print("\nEnvironment Variables Test:")
         try:
-            github_key = config._get_secret_from_github()
-            print(f"GitHub Secrets accessible: {'Yes' if github_key else 'No'}")
-            if github_key:
-                print(f"GitHub Secret value: {github_key[:8]}...")
+            env_key = config._get_secret_from_environment()
+            print(f"Environment Variables accessible: {'Yes' if env_key else 'No'}")
+            if env_key:
+                print(f"Environment Variable value: {env_key[:8]}...")
         except Exception as e:
-            print(f"GitHub Secrets error: {e}")
+            print(f"Environment Variables error: {e}")
         
         # Test Secret Manager access
         print("\nSecret Manager Test:")
@@ -214,6 +254,11 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Secret Manager error: {e}")
         
+        # Test GCP Project ID detection
+        print("\nGCP Project ID Test:")
+        project_id = config._get_gcp_project_id()
+        print(f"Detected GCP Project ID: {project_id}")
+        
         # Test PostgreSQL configuration
         print("\nPostgreSQL Configuration Test:")
         pg_config = config.get_postgres_config()
@@ -223,22 +268,14 @@ if __name__ == "__main__":
         print(f"User: {pg_config['user']}")
         print(f"SSL Mode: {pg_config['sslmode']}")
         print(f"Database Type: {config.get_database_type()}")
-        print(f"Database URL: {config.get_database_url()}")
-        
-        # Test local secrets.toml
-        secrets_path = Path(__file__).parent.parent.parent / ".streamlit" / "secrets.toml"
-        print("\nLocal Secrets Test:")
-        print(f"secrets.toml location: {secrets_path}")
-        print(f"secrets.toml exists: {'Yes' if secrets_path.exists() else 'No'}")
         
         # Test environment variables
-        print("\nEnvironment Variables Test:")
+        print("\nEnvironment Variables Check:")
         print(f"ANTHROPIC_API_KEY: {'Set' if os.getenv('ANTHROPIC_API_KEY') else 'Not set'}")
-        print(f"GITHUB_ANTHROPIC_API_KEY: {'Set' if os.getenv('GITHUB_ANTHROPIC_API_KEY') else 'Not set'}")
-        print(f"CODESPACES_ANTHROPIC_API_KEY: {'Set' if os.getenv('CODESPACES_ANTHROPIC_API_KEY') else 'Not set'}")
-        print(f"Secret Manager Resource: projects/315388300473/secrets/anthropic-api-key")
-        print(f"PG_HOST: {os.getenv('PG_HOST', 'Not set')}")
-        print(f"PG_DATABASE: {os.getenv('PG_DATABASE', 'Not set')}")
+        print(f"GOOGLE_CLOUD_PROJECT: {'Set' if os.getenv('GOOGLE_CLOUD_PROJECT') else 'Not set'}")
+        print(f"GCP_PROJECT: {'Set' if os.getenv('GCP_PROJECT') else 'Not set'}")
         
     except Exception as e:
         print(f"\nError occurred: {str(e)}")
+        import traceback
+        traceback.print_exc()
