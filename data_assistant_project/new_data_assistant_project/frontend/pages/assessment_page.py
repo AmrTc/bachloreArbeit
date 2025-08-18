@@ -475,7 +475,7 @@ def render_assessment_page(user: User):
             level = "Expert"
         
         st.markdown("### Your Results")
-        st.write(f"- **Total Score**: {total_score}/24")
+        st.write(f"- **Total Score**: {total_score}/30")
         st.write(f"- **User Level**: {level}")
         
         if st.button("Save and Continue", type="primary"):

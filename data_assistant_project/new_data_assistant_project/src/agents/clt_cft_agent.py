@@ -181,11 +181,11 @@ Intrinsic_Load = (Data_Dimensionality × 0.3) + (Analytical_Complexity × 0.4) +
 ### Phase 4: User Capability Mapping
 
 **User Expertise Levels:**
-- **Level 1 (Beginner):** Can handle complexity ≤ 3.0
-- **Level 2 (Novice):** Can handle complexity ≤ 4.5  
-- **Level 3 (Intermediate):** Can handle complexity ≤ 6.5
-- **Level 4 (Advanced):** Can handle complexity ≤ 8.5
-- **Level 5 (Expert):** Can handle complexity ≤ 10.0
+- **Level 1 (Beginner):** Can handle complexity ≤ 6.0 (Score 0-6)
+- **Level 2 (Novice):** Can handle complexity ≤ 12.0 (Score 7-12)
+- **Level 3 (Intermediate):** Can handle complexity ≤ 18.0 (Score 13-18)
+- **Level 4 (Advanced):** Can handle complexity ≤ 24.0 (Score 19-24)
+- **Level 5 (Expert):** Can handle complexity ≤ 30.0 (Score 25-30)
 
 ### Phase 5: Explanation Need Prediction
 
@@ -492,15 +492,15 @@ Return ONLY a valid JSON object with these exact field names and values.
                 return "Expert"
     
     def _get_capability_threshold(self, user_level: str) -> float:
-        """Get capability threshold based on user level"""
+        """Get capability threshold based on user level (0-30 scale)"""
         thresholds = {
-            "Beginner": 3.0,
-            "Novice": 4.5,
-            "Intermediate": 6.5,
-            "Advanced": 8.5,
-            "Expert": 10.0
+            "Beginner": 6.0,
+            "Novice": 12.0,
+            "Intermediate": 18.0,
+            "Advanced": 24.0,
+            "Expert": 30.0
         }
-        return thresholds.get(user_level, 5.0)
+        return thresholds.get(user_level, 15.0)
     
     def _fallback_complexity_assessment(self, user_query: str, user_profile: UserProfile) -> CognitiveAssessment:
         """Fallback complexity assessment when LLM assessment fails"""
@@ -600,7 +600,7 @@ Return ONLY a valid JSON object with these exact field names and values.
                 "cft_misfit_penalty": 0.0,
                 "final_complexity_score": intrinsic_load
             },
-            user_capability_threshold=user_profile.sql_expertise_level * 2.0,  # Convert 1-5 scale to 2-10 scale
+            user_capability_threshold=user_profile.sql_expertise_level * 6.0,  # Convert 1-5 scale to 6-30 scale
             final_complexity_score=intrinsic_load
         )
     
@@ -703,7 +703,10 @@ Should this user receive an explanation for this query? What type of explanation
             Dictionary with explanation_needed, explanation_type, and reasoning
         """
         # Simple fallback: explanation needed if complexity exceeds expertise
-        if task_complexity > user_sql_expertise:
+        # Convert user expertise from 1-5 scale to 0-30 scale for comparison
+        user_expertise_score = user_sql_expertise * 6  # 1->6, 2->12, 3->18, 4->24, 5->30
+        
+        if task_complexity > user_expertise_score:
             explanation_needed = True
             if user_sql_expertise <= 2:
                 explanation_type = "basic"
@@ -711,11 +714,11 @@ Should this user receive an explanation for this query? What type of explanation
                 explanation_type = "intermediate"
             else:
                 explanation_type = "advanced"
-            reasoning = f"Fallback: Task complexity ({task_complexity}) > User expertise ({user_sql_expertise})"
+            reasoning = f"Fallback: Task complexity ({task_complexity}) > User expertise score ({user_expertise_score})"
         else:
             explanation_needed = False
             explanation_type = "none"
-            reasoning = f"Fallback: User can handle task complexity ({task_complexity}) with expertise level ({user_sql_expertise})"
+            reasoning = f"Fallback: User can handle task complexity ({task_complexity}) with expertise score ({user_expertise_score})"
         
         return {
             "explanation_needed": explanation_needed,
@@ -952,10 +955,13 @@ Should this user receive an explanation for this query? What type of explanation
         
         if react_result.success and react_result.data is not None:
             # Limit data based on cognitive capacity vs load
-            if cognitive_assessment.intrinsic_load > user_profile.cognitive_load_capacity:
+            # Convert cognitive load capacity from 1-5 scale to 0-30 scale for comparison
+            cognitive_capacity_score = user_profile.cognitive_load_capacity * 6  # 1->6, 2->12, 3->18, 4->24, 5->30
+            
+            if cognitive_assessment.intrinsic_load > cognitive_capacity_score:
                 max_rows = min(5, len(react_result.data))  # High load = fewer rows
                 modified_result.data = react_result.data.head(max_rows)
-                logger.info(f"Limited results to {max_rows} rows due to cognitive overload")
+                logger.info(f"Limited results to {max_rows} rows due to cognitive overload (load: {cognitive_assessment.intrinsic_load}, capacity: {cognitive_capacity_score})")
             else:
                 max_rows = min(15, len(react_result.data))  # Normal capacity
                 modified_result.data = react_result.data.head(max_rows)
@@ -1252,10 +1258,13 @@ Please provide a {assessment.explanation_type} explanation for the {assessment.t
         profile.prior_query_history = profile.prior_query_history[-10:]
         
         # Update concept level if user handled high complexity well
-        if assessment.intrinsic_load >= 4 and not assessment.explanation_needed:
+        # Convert threshold from old scale (4) to new scale (24)
+        complexity_threshold = 24  # 4 * 6 = 24 in new scale
+        
+        if assessment.intrinsic_load >= complexity_threshold and not assessment.explanation_needed:
             current_level = profile.sql_concept_levels.get(assessment.task_sql_concept, 1)
             profile.sql_concept_levels[assessment.task_sql_concept] = min(5, current_level + 1)
-            logger.info(f"Increased {assessment.task_sql_concept} level to {profile.sql_concept_levels[assessment.task_sql_concept]}")
+            logger.info(f"Increased {assessment.task_sql_concept} level to {profile.sql_concept_levels[assessment.task_sql_concept]} (handled complexity {assessment.intrinsic_load} >= {complexity_threshold})")
         
         profile.last_updated = datetime.now().isoformat()
         

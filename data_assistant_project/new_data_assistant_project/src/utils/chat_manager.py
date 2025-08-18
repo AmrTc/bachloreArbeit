@@ -178,10 +178,21 @@ class ChatManager:
                 
                 # Display data in a nice format
                 if len(modified_result.data) > 0:
-                    import pandas as pd
-                    df = pd.DataFrame(modified_result.data)
-                    response_parts.append("**Data:**")
-                    response_parts.append(df.to_markdown(index=False))
+                    try:
+                        import pandas as pd
+                        df = pd.DataFrame(modified_result.data)
+                        response_parts.append("**Data:**")
+                        try:
+                            # Prefer markdown if tabulate is available
+                            response_parts.append(df.to_markdown(index=False))
+                        except Exception:
+                            # Fallback to plain text
+                            response_parts.append("```\n" + df.head(15).to_string(index=False) + "\n```")
+                    except Exception:
+                        # Final fallback – show first few records as JSON
+                        preview = modified_result.data[:5] if isinstance(modified_result.data, list) else []
+                        response_parts.append("**Data (preview):**")
+                        response_parts.append("```json\n" + str(preview) + "\n```")
             else:
                 response_parts.append("❌ **Error:** Unable to process your query.")
                 if modified_result.error_message:
@@ -220,7 +231,8 @@ class ChatManager:
             return response_text, explanation_given, chat_session.id
             
         except Exception as e:
-            logger.error(f"Error processing message: {e}")
+            # Log full traceback to aid debugging in production
+            logger.exception(f"Error processing message: {e}")
             error_response = "❌ **System Error:** I'm experiencing technical difficulties. Please try again in a moment."
             
             # Still save error session

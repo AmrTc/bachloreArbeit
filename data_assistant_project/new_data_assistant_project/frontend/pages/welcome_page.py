@@ -111,7 +111,7 @@ def render_welcome_page(user: User):
             st.metric("Level", user.user_level_category)
         
         with col2:
-            st.metric("Total Score", f"{user.total_assessment_score}/20")
+            st.metric("Total Score", f"{user.total_assessment_score}/30")
         
         st.markdown("**Next:** Task Phase (20 minutes)")
     
