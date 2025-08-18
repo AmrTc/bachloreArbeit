@@ -6,32 +6,32 @@ import logging
 def robust_import_modules():
     """Import required modules with multiple fallback strategies."""
     
-    # Strategy 1: Try direct imports (Docker/production - new structure)
+    # Strategy 1: Try PostgreSQL imports first (Docker/production - new structure)
     try:
-        from src.database.postgres_models import User, ExplanationFeedback
-        from src.utils.auth_manager import AuthManager
-        print("✅ Feedback Page: Direct imports successful")
-        return User, AuthManager
+        from src.database.postgres_models import User, ExplanationFeedback, ComprehensiveFeedback
+        from src.database.postgres_auth_manager import PostgresAuthManager
+        print("✅ Feedback Page: PostgreSQL imports successful")
+        return User, PostgresAuthManager, ComprehensiveFeedback
     except ImportError as e:
-        print(f"❌ Direct imports failed: {e}")
+        print(f"❌ PostgreSQL imports failed: {e}")
     
-    # Strategy 2: Try direct imports (Docker/production - new structure)
+    # Strategy 2: Try relative PostgreSQL imports (fallback)
     try:
-        from src.database.postgres_models import User, ExplanationFeedback
-        from src.utils.auth_manager import AuthManager
-        print("✅ Feedback Page: Direct imports successful")
-        return User, AuthManager
+        from database.postgres_models import User, ExplanationFeedback, ComprehensiveFeedback
+        from database.postgres_auth_manager import PostgresAuthManager
+        print("✅ Feedback Page: Relative PostgreSQL imports successful")
+        return User, PostgresAuthManager, ComprehensiveFeedback
     except ImportError as e:
-        print(f"❌ Direct imports failed: {e}")
+        print(f"❌ Relative PostgreSQL imports failed: {e}")
     
-    # Strategy 3: Try relative imports (fallback)
+    # Strategy 3: Try direct imports (fallback to SQLite)
     try:
-        from src.database.postgres_models import User, ExplanationFeedback
+        from src.database.postgres_models import User, ExplanationFeedback, ComprehensiveFeedback
         from src.utils.auth_manager import AuthManager
-        print("✅ Feedback Page: Relative imports successful")
-        return User, AuthManager
+        print("✅ Feedback Page: SQLite fallback imports successful")
+        return User, AuthManager, ComprehensiveFeedback
     except ImportError as e:
-        print(f"❌ Relative imports failed: {e}")
+        print(f"❌ SQLite fallback imports failed: {e}")
     
     # Strategy 4: Manual path manipulation
     try:
@@ -41,25 +41,24 @@ def robust_import_modules():
         sys.path.insert(0, str(current_dir))
         sys.path.insert(0, str(current_dir / 'src'))
         
-        from database.postgres_models import User, ExplanationFeedback
-        from utils.auth_manager import AuthManager
-        print("✅ Feedback Page: Manual path imports successful")
-        return User, AuthManager
+        from database.postgres_models import User, ExplanationFeedback, ComprehensiveFeedback
+        from database.postgres_auth_manager import PostgresAuthManager
+        print("✅ Feedback Page: Manual path PostgreSQL imports successful")
+        return User, PostgresAuthManager, ComprehensiveFeedback
     except ImportError as e:
-        print(f"❌ Manual path imports failed: {e}")
-        st.error(f"❌ Could not import required modules: {e}")
-        st.stop()
+        print(f"❌ Manual path PostgreSQL imports failed: {e}")
+        try:
+            from database.postgres_models import User, ExplanationFeedback, ComprehensiveFeedback
+            from utils.auth_manager import AuthManager
+            print("✅ Feedback Page: Manual path SQLite fallback successful")
+            return User, AuthManager, ComprehensiveFeedback
+        except ImportError as e2:
+            print(f"❌ Manual path SQLite fallback failed: {e2}")
+            st.error(f"❌ Could not import required modules: {e2}")
+            st.stop()
 
 # Import modules
-User, AuthManager = robust_import_modules()
-
-# Import ComprehensiveFeedback model
-try:
-    from src.database.postgres_models import ComprehensiveFeedback
-    print("✅ ComprehensiveFeedback import successful")
-except ImportError:
-    print("❌ ComprehensiveFeedback import failed")
-    ComprehensiveFeedback = None
+User, AuthManager, ComprehensiveFeedback = robust_import_modules()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -225,8 +224,17 @@ def render_feedback_page(user: User):
                 st.error("❌ Error: Could not import feedback model. Please try again.")
                 return
             
-            # Get database path from auth manager
-            db_config = auth_manager.db_config
+            # Get database configuration from auth manager
+            # Handle both PostgreSQL and SQLite auth managers
+            if hasattr(auth_manager, 'db_config'):
+                db_config = auth_manager.db_config
+            elif hasattr(auth_manager, 'postgres_config'):
+                db_config = auth_manager.postgres_config.get_connection_params()
+            elif hasattr(auth_manager, 'get_connection_params'):
+                db_config = auth_manager.get_connection_params()
+            else:
+                st.error("❌ Error: Could not get database configuration.")
+                return
             
             # Create and save comprehensive feedback
             feedback = ComprehensiveFeedback.create_feedback(
@@ -247,7 +255,7 @@ def render_feedback_page(user: User):
                 recommendation_index=st.session_state.feedback_responses.get('recommendation_index', 0)
             )
             
-            # Save to PostgreSQL database
+            # Save to database (PostgreSQL or SQLite)
             feedback.save(db_config)
             
             st.success("✅ Thank you for your valuable feedback! Your responses have been recorded in our research database.")
@@ -277,6 +285,10 @@ def render_feedback_page(user: User):
         except Exception as e:
             st.error(f"❌ Error saving feedback: {e}")
             logger.error(f"Feedback save error: {e}")
+            # Add more detailed error information
+            logger.error(f"Database config type: {type(db_config)}")
+            logger.error(f"Database config: {db_config}")
+            logger.error(f"Auth manager type: {type(auth_manager)}")
     
     # Navigation
     st.markdown("---")
