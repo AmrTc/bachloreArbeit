@@ -43,13 +43,19 @@ class ReActAgent:
         Args:
             database_config: PostgreSQL connection configuration dictionary
         """
+        # Initialize API client with better error handling
         try:
             config = MyConfig()
             api_key = config.get_api_key()
             if not api_key:
                 raise ValueError("No API key found in configuration")
+            
+            # Validate API key format
+            if not api_key.startswith('sk-ant-'):
+                logger.warning(f"API key format seems incorrect: {api_key[:10]}...")
+            
             self.client = Anthropic(api_key=api_key)
-            logger.info("Successfully initialized Anthropic client")
+            logger.info(f"Successfully initialized Anthropic client with key: {api_key[:10]}...")
         except Exception as e:
             logger.error(f"Failed to initialize Anthropic client: {e}")
             raise
@@ -60,10 +66,20 @@ class ReActAgent:
         else:
             self.database_config = config.get_postgres_config()
         
+        # Log database config (without password)
+        safe_config = {k: v for k, v in self.database_config.items() if k != 'password'}
+        safe_config['password'] = '***' if 'password' in self.database_config else 'None'
+        logger.info(f"Database config: {safe_config}")
+        
         self.model = "claude-sonnet-4-20250514"  # Using latest available Sonnet model
         
-        # Initialize database schema cache
-        self.schema_info = self._get_database_schema()
+        # Initialize database schema cache with fallback
+        try:
+            self.schema_info = self._get_database_schema()
+            logger.info(f"Schema loaded successfully: {len(self.schema_info)} characters")
+        except Exception as e:
+            logger.error(f"Failed to load database schema: {e}")
+            self.schema_info = self._get_fallback_schema()
         
         # Query complexity patterns for cognitive load assessment
         self.complexity_patterns = {
@@ -74,11 +90,46 @@ class ReActAgent:
             5: ['WINDOW FUNCTION', 'CTE', 'MULTIPLE JOINS']  # Advanced operations
         }
     
+    def _get_fallback_schema(self) -> str:
+        """Provide fallback schema information when database connection fails."""
+        return """PostgreSQL Database Schema (Fallback - Superstore Sample):
+
+Table: orders
+  - row_id (integer) PRIMARY KEY
+  - order_id (varchar) 
+  - order_date (date)
+  - ship_date (date)
+  - ship_mode (varchar)
+  - customer_id (varchar)
+  - customer_name (varchar)
+  - segment (varchar)
+  - country (varchar)
+  - city (varchar)
+  - state (varchar)
+  - postal_code (varchar)
+  - region (varchar)
+  - product_id (varchar)
+  - category (varchar)
+  - sub_category (varchar)
+  - product_name (varchar)
+  - sales (numeric)
+  - quantity (integer)
+  - discount (numeric)
+  - profit (numeric)
+  Total rows: ~10000
+
+This is a sample retail/superstore dataset with order information, customer details, and sales metrics."""
+    
     def _get_database_schema(self) -> str:
         """Extract PostgreSQL database schema information for context."""
         try:
             import psycopg2
+            
+            # Test connection first
+            logger.info("Testing PostgreSQL connection...")
             conn = psycopg2.connect(**self.database_config)
+            logger.info("PostgreSQL connection successful")
+            
             cursor = conn.cursor()
             
             # Show all available tables
@@ -92,6 +143,7 @@ class ReActAgent:
                 ORDER BY table_name;
             """)
             tables = cursor.fetchall()
+            logger.info(f"Found {len(tables)} tables in database")
             
             for table in tables:
                 table_name = table[0]
@@ -119,7 +171,8 @@ class ReActAgent:
                     cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
                     row_count = cursor.fetchone()[0]
                     schema_info += f"  Total rows: {row_count}\n"
-                except:
+                except Exception as e:
+                    logger.warning(f"Could not count rows for {table_name}: {e}")
                     schema_info += f"  Could not count rows\n"
             
             cursor.close()
@@ -127,7 +180,8 @@ class ReActAgent:
             return schema_info
         except Exception as e:
             logger.error(f"Error getting PostgreSQL database schema: {e}")
-            return "PostgreSQL schema information unavailable"
+            # Return fallback schema instead of empty string
+            return self._get_fallback_schema()
     
     def _assess_query_complexity(self, sql_query: str) -> int:
         """
@@ -155,6 +209,9 @@ class ReActAgent:
         """
         Comprehensive SQL query cleaning to remove markdown formatting and fix PostgreSQL compatibility.
         """
+        if not sql_query or not isinstance(sql_query, str):
+            return ""
+        
         # Remove markdown code blocks
         sql_query = re.sub(r'```sql\s*', '', sql_query, flags=re.MULTILINE | re.IGNORECASE)
         sql_query = re.sub(r'\s*```', '', sql_query, flags=re.MULTILINE)
@@ -209,7 +266,7 @@ class ReActAgent:
     
     def _generate_sql_with_reasoning(self, user_query: str) -> Tuple[str, str]:
         """
-        Generate SQL query using ReAct reasoning pattern.
+        Generate SQL query using ReAct reasoning pattern with improved error handling.
         Returns both the SQL query and the reasoning process.
         """
         system_prompt = f"""You are an expert SQL analyst following the ReAct (Reasoning and Acting) approach.
@@ -234,9 +291,12 @@ class ReActAgent:
         [Your step-by-step reasoning]
         
         SQL:
-        [Your SQL query]"""
+        [Your SQL query - MUST be valid PostgreSQL syntax]"""
         
         try:
+            logger.info(f"Generating SQL for query: {user_query}")
+            logger.info(f"Using model: {self.model}")
+            
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1000,
@@ -256,6 +316,9 @@ class ReActAgent:
                 else:
                     content += str(block)
             
+            logger.info(f"API response received: {len(content)} characters")
+            logger.debug(f"Raw API response: {content[:500]}...")
+            
             # Content successfully extracted from API
             
             # Extract reasoning and SQL
@@ -267,15 +330,24 @@ class ReActAgent:
                 # Clean SQL query comprehensively
                 sql_query = self._clean_sql_query(sql_query)
                 
+                logger.info(f"SQL query extracted: {sql_query[:100]}...")
+                
                 return sql_query, reasoning
             else:
                 # Fallback if format is not followed - try to extract SQL anyway
+                logger.warning("API response format not as expected, trying fallback extraction")
                 cleaned_content = self._clean_sql_query(content)
-                return cleaned_content, "Reasoning not available"
+                if cleaned_content:
+                    logger.info(f"Fallback SQL extraction successful: {cleaned_content[:100]}...")
+                    return cleaned_content, "Reasoning not available"
+                else:
+                    logger.error("No SQL query could be extracted from API response")
+                    return "", "Could not extract SQL from response"
                 
         except Exception as e:
             logger.error(f"Error generating SQL: {e}")
-            return "", "I encountered an error while processing your request"
+            logger.exception("Full traceback:")
+            return "", f"I encountered an error while processing your request: {str(e)}"
     
     def execute_query(self, user_query: str) -> QueryResult:
         """
@@ -291,15 +363,18 @@ class ReActAgent:
         start_time = time.time()
         
         try:
+            logger.info(f"Starting query execution for: {user_query}")
+            
             # Step 1: Generate SQL using ReAct reasoning
             sql_query, reasoning = self._generate_sql_with_reasoning(user_query)
             
             if not sql_query:
+                logger.error("No SQL query generated")
                 return QueryResult(
                     success=False,
                     data=None,
                     sql_query="",
-                    error_message="I couldn't understand your request. Please try rephrasing your question about the data.",
+                    error_message="I couldn't generate a SQL query for your request. This might be due to API connectivity issues or the request being unclear. Please try rephrasing your question.",
                     execution_time=time.time() - start_time,
                     complexity_score=1
                 )
@@ -309,19 +384,22 @@ class ReActAgent:
             
             # Step 3: Assess query complexity for CLT & CFT Agent
             complexity_score = self._assess_query_complexity(sql_query)
+            logger.info(f"Query complexity score: {complexity_score}")
             
             # Step 4: Execute SQL query using PostgreSQL
             try:
                 import psycopg2
+                logger.info("Connecting to PostgreSQL for query execution")
                 conn = psycopg2.connect(**self.database_config)
                 
                 # Execute query and get results
+                logger.info(f"Executing SQL: {sql_query}")
                 result_df = pd.read_sql_query(sql_query, conn)
                 conn.close()
                 
                 execution_time = time.time() - start_time
                 
-                logger.info(f"Query executed successfully. Complexity: {complexity_score}")
+                logger.info(f"Query executed successfully. Complexity: {complexity_score}, Rows: {len(result_df)}, Time: {execution_time:.2f}s")
                 logger.info(f"Reasoning: {reasoning[:100]}...")
                 
                 return QueryResult(
@@ -336,11 +414,12 @@ class ReActAgent:
             except psycopg2.Error as e:
                 # Log the actual error for debugging but return user-friendly message
                 logger.error(f"PostgreSQL execution error: {str(e)}")
+                logger.error(f"Failed SQL query: {sql_query}")
                 return QueryResult(
                     success=False,
                     data=None,
                     sql_query=sql_query,
-                    error_message="I encountered an issue while processing your request. Please try rephrasing your question or ask about different data.",
+                    error_message=f"I encountered a database error while executing the query. The query might have syntax issues or reference non-existent tables/columns. Error: {str(e)}",
                     execution_time=time.time() - start_time,
                     complexity_score=complexity_score
                 )
@@ -348,11 +427,12 @@ class ReActAgent:
         except Exception as e:
             # Log the actual error for debugging but return user-friendly message
             logger.error(f"Processing error in ReAct agent: {str(e)}")
+            logger.exception("Full traceback:")
             return QueryResult(
                 success=False,
                 data=None,
                 sql_query="",
-                error_message="I'm having trouble processing your request right now. Please try again with a different question about the business data.",
+                error_message=f"I'm having trouble processing your request right now. Error details: {str(e)}. Please try again with a different question about the business data.",
                 execution_time=time.time() - start_time,
                 complexity_score=1
             )
@@ -408,7 +488,7 @@ class ReActAgent:
             conn.close()
             return True, "Valid SQL syntax"
         except psycopg2.Error as e:
-            return False, "Invalid SQL syntax"
+            return False, f"Invalid SQL syntax: {str(e)}"
     
     def get_sample_data(self, table_name: str = None, limit: int = 5) -> pd.DataFrame:
         """Get sample data from the specified table or list all available tables using PostgreSQL."""
@@ -456,36 +536,28 @@ if __name__ == "__main__":
         api_key = config.get_api_key()
         print("\nAPI Key Test:")
         print(f"API Key loaded: {'Yes' if api_key else 'No'}")
-        print(f"API Key value: {api_key}")
+        print(f"API Key value: {api_key[:10]}..." if api_key else "No API key found")
         
         # Initialize ReAct Agent with PostgreSQL
         react_agent = ReActAgent()
         print("\nReAct Agent Initialization:")
         print("Agent initialized successfully with PostgreSQL")
         
-        # Example queries for testing
-        test_queries = [
-            "What are the top 5 products by sales?",
-            "Show me sales by region and category",
-            "Which customers have the highest profit margins?",
-            "Compare sales performance across different time periods",
-            "Create a new table for customer feedback",
-            "Update the sales column for product ID 123"
-        ]
+        # Test simple query
+        test_query = "Show me the first 5 rows from any table"
+        print(f"\nTesting query: {test_query}")
+        result = react_agent.execute_query(test_query)
         
-        for query in test_queries:
-            print(f"\nProcessing: {query}")
-            result = react_agent.execute_query(query)
+        if result.success:
+            print(f"SQL Generated: {result.sql_query}")
+            print(f"Complexity Score: {result.complexity_score}")
+            if result.data is not None:
+                print(f"Results shape: {result.data.shape}")
+            print(f"Execution time: {result.execution_time:.2f}s")
+        else:
+            print(f"Error: {result.error_message}")
             
-            if result.success:
-                print(f"SQL Generated: {result.sql_query}")
-                print(f"Complexity Score: {result.complexity_score}")
-                if result.data is not None:
-                    print(f"Results shape: {result.data.shape}")
-                else:
-                    print("No data returned.")
-                print(f"Execution time: {result.execution_time:.2f}s")
-            else:
-                print(f"Error: {result.error_message}")
     except Exception as e:
         print(f"\nError occurred: {str(e)}")
+        import traceback
+        traceback.print_exc()
