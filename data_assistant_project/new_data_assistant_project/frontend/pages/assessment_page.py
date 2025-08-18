@@ -59,6 +59,8 @@ logger = logging.getLogger(__name__)
 
 def render_assessment_page(user: User):
     """Render the comprehensive assessment page for the research study."""
+    # Ensure we have database config available for saving results
+    auth_manager = AuthManager()
     
     st.markdown("""
     # 📊 Assessment Phase
