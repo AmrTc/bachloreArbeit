@@ -372,7 +372,7 @@ if __name__ == "__main__":
     PG_PORT = int(os.getenv('PG_PORT', '5432'))
     PG_DATABASE = os.getenv('PG_DATABASE', 'superstore')
     PG_USER = os.getenv('PG_USER', 'postgres')
-    PG_PASSWORD = os.getenv('PG_PASSWORD', '<zdG$DLpmG,~p3A')
+    PG_PASSWORD = os.getenv('PG_PASSWORD', 'RHGAgo4<C4fyr')
     
     # Create tables and update existing ones
     create_postgres_tables(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD)

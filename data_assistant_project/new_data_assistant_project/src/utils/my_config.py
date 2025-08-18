@@ -93,7 +93,7 @@ class MyConfig:
             'port': int(os.getenv('PG_PORT', '5432')),
             'database': os.getenv('PG_DATABASE', 'superstore'),
             'user': os.getenv('PG_USER', 'postgres'),
-            'password': os.getenv('PG_PASSWORD', '<zdG$DLpmG,~p3A'),
+            'password': os.getenv('PG_PASSWORD', 'RHGAgo4<C4fyr'),
             'sslmode': os.getenv('PG_SSLMODE', 'require'),
             'connect_timeout': int(os.getenv('PG_CONNECT_TIMEOUT', '30'))
         }

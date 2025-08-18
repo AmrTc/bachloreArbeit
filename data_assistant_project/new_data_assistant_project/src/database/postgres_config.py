@@ -17,7 +17,7 @@ class PostgresConfig:
             'port': int(os.getenv('PG_PORT', '5432')),
             'database': os.getenv('PG_DATABASE', 'superstore'),
             'user': os.getenv('PG_USER', 'postgres'),
-            'password': os.getenv('PG_PASSWORD', '<zdG$DLpmG,~p3A'),  # Updated password
+            'password': os.getenv('PG_PASSWORD', 'RHGAgo4<C4fyr'),  # Updated password
             'sslmode': os.getenv('PG_SSLMODE', 'require'),
             'connect_timeout': int(os.getenv('PG_CONNECT_TIMEOUT', '30')),
             'application_name': os.getenv('PG_APP_NAME', 'data_assistant_app')
@@ -72,7 +72,7 @@ export PG_HOST="34.59.248.159"
 export PG_PORT="5432"
 export PG_DATABASE="superstore"
 export PG_USER="postgres"
-export PG_PASSWORD="<zdG$DLpmG,~p3A"
+export PG_PASSWORD="RHGAgo4<C4fyr"
 export PG_SSLMODE="require"
 export PG_CONNECT_TIMEOUT="30"
 export PG_APP_NAME="data_assistant_app"
@@ -85,7 +85,7 @@ PG_HOST=34.59.248.159
 PG_PORT=5432
 PG_DATABASE=superstore
 PG_USER=postgres
-PG_PASSWORD=<zdG$DLpmG,~p3A
+PG_PASSWORD=RHGAgo4<C4fyr
 PG_SSLMODE=require
 PG_CONNECT_TIMEOUT=30
 PG_APP_NAME=data_assistant_app

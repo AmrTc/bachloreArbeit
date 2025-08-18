@@ -23,7 +23,7 @@ PG_CONFIG = {
     'port': 5432,
     'database': 'superstore',
     'user': 'postgres',
-    'password': '<zdG$DLpmG,~p3A',  # Updated password
+    'password': 'RHGAgo4<C4fyr',  # Updated password
     'sslmode': 'require',
     'connect_timeout': 30
 }
