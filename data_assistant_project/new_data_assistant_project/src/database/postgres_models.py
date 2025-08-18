@@ -253,3 +253,450 @@ class User:
         except Exception as e:
             logger.error(f"Error completing assessment: {e}")
             raise
+
+
+# ------------------------------
+# Chat sessions (PostgreSQL)
+# ------------------------------
+
+@dataclass
+class ChatSession:
+    id: Optional[int]
+    user_id: int
+    session_uuid: str
+    user_message: str
+    system_response: str
+    sql_query: Optional[str]
+    explanation_given: bool
+    created_at: datetime
+
+    @classmethod
+    def create_session(
+        cls,
+        user_id: int,
+        user_message: str,
+        system_response: str,
+        sql_query: str = None,
+        explanation_given: bool = False,
+    ) -> "ChatSession":
+        return cls(
+            id=None,
+            user_id=user_id,
+            session_uuid=str(uuid.uuid4()),
+            user_message=user_message,
+            system_response=system_response,
+            sql_query=sql_query,
+            explanation_given=explanation_given,
+            created_at=datetime.now(),
+        )
+
+    def save(self, db_config: Dict[str, Any]):
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO chat_sessions (
+                    user_id, session_uuid, user_message, system_response,
+                    sql_query, explanation_given, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    self.user_id,
+                    self.session_uuid,
+                    self.user_message,
+                    self.system_response,
+                    self.sql_query,
+                    self.explanation_given,
+                    self.created_at,
+                ),
+            )
+            self.id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error saving chat session: {e}")
+            raise
+
+    @classmethod
+    def get_user_sessions(
+        cls, db_config: Dict[str, Any], user_id: int, limit: int = 50
+    ) -> List["ChatSession"]:
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, user_id, session_uuid, user_message, system_response,
+                       sql_query, explanation_given, created_at
+                FROM chat_sessions
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (user_id, limit),
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            sessions: List[ChatSession] = []
+            for row in rows:
+                sessions.append(
+                    cls(
+                        id=row[0],
+                        user_id=row[1],
+                        session_uuid=row[2],
+                        user_message=row[3],
+                        system_response=row[4],
+                        sql_query=row[5],
+                        explanation_given=bool(row[6]) if row[6] is not None else False,
+                        created_at=row[7]
+                        if isinstance(row[7], datetime)
+                        else datetime.fromisoformat(str(row[7])),
+                    )
+                )
+            return sessions
+        except Exception as e:
+            logger.error(f"Error fetching chat sessions: {e}")
+            return []
+
+    @classmethod
+    def delete_user_sessions(cls, db_config: Dict[str, Any], user_id: int):
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM chat_sessions WHERE user_id = %s", (user_id,))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error deleting chat sessions: {e}")
+            raise
+
+
+# ------------------------------------
+# Explanation feedback (PostgreSQL)
+# ------------------------------------
+
+@dataclass
+class ExplanationFeedback:
+    id: Optional[int]
+    user_id: int
+    session_id: int
+    explanation_given: bool
+    was_needed: Optional[bool]
+    was_helpful: Optional[bool]
+    would_have_been_needed: Optional[bool]
+    created_at: datetime
+
+    @classmethod
+    def create_feedback(
+        cls,
+        user_id: int,
+        session_id: int,
+        explanation_given: bool,
+        was_needed: bool = None,
+        was_helpful: bool = None,
+        would_have_been_needed: bool = None,
+    ) -> "ExplanationFeedback":
+        return cls(
+            id=None,
+            user_id=user_id,
+            session_id=session_id,
+            explanation_given=explanation_given,
+            was_needed=was_needed,
+            was_helpful=was_helpful,
+            would_have_been_needed=would_have_been_needed,
+            created_at=datetime.now(),
+        )
+
+    def save(self, db_config: Dict[str, Any]):
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO explanation_feedback (
+                    user_id, session_id, explanation_given,
+                    was_needed, was_helpful, would_have_been_needed, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    self.user_id,
+                    self.session_id,
+                    self.explanation_given,
+                    self.was_needed,
+                    self.was_helpful,
+                    self.would_have_been_needed,
+                    self.created_at,
+                ),
+            )
+            self.id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error saving explanation feedback: {e}")
+            raise
+
+    @classmethod
+    def get_all_feedback(
+        cls, db_config: Dict[str, Any]
+    ) -> List["ExplanationFeedback"]:
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT ef.id, ef.user_id, ef.session_id, ef.explanation_given,
+                       ef.was_needed, ef.was_helpful, ef.would_have_been_needed, ef.created_at,
+                       u.username, cs.user_message
+                FROM explanation_feedback ef
+                JOIN users u ON ef.user_id = u.id
+                JOIN chat_sessions cs ON ef.session_id = cs.id
+                ORDER BY ef.created_at DESC
+                """
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            feedback_list: List[ExplanationFeedback] = []
+            for row in rows:
+                fb = cls(
+                    id=row[0],
+                    user_id=row[1],
+                    session_id=row[2],
+                    explanation_given=bool(row[3]) if row[3] is not None else False,
+                    was_needed=bool(row[4]) if row[4] is not None else None,
+                    was_helpful=bool(row[5]) if row[5] is not None else None,
+                    would_have_been_needed=bool(row[6]) if row[6] is not None else None,
+                    created_at=row[7]
+                    if isinstance(row[7], datetime)
+                    else datetime.fromisoformat(str(row[7])),
+                )
+                # attach extra fields for dashboard (kept for compatibility)
+                setattr(fb, "username", row[8])
+                setattr(fb, "user_message", row[9])
+                feedback_list.append(fb)
+            return feedback_list
+        except Exception as e:
+            logger.error(f"Error fetching explanation feedback: {e}")
+            return []
+
+
+# --------------------------------------
+# Comprehensive feedback (PostgreSQL)
+# --------------------------------------
+
+@dataclass
+class ComprehensiveFeedback:
+    id: Optional[int]
+    user_id: int
+    frequency_rating: int
+    frequency_reason: Optional[str]
+    explanation_quality_rating: int
+    explanation_quality_reason: Optional[str]
+    system_helpfulness_rating: int
+    system_helpfulness_reason: Optional[str]
+    learning_improvement_rating: int
+    learning_improvement_reason: Optional[str]
+    auto_explanation: bool
+    auto_reason: Optional[str]
+    system_accuracy: str
+    system_accuracy_index: int
+    recommendation: str
+    recommendation_index: int
+    created_at: datetime
+
+    @classmethod
+    def create_feedback(
+        cls,
+        user_id: int,
+        frequency_rating: int,
+        frequency_reason: str,
+        explanation_quality_rating: int,
+        explanation_quality_reason: str,
+        system_helpfulness_rating: int,
+        system_helpfulness_reason: str,
+        learning_improvement_rating: int,
+        learning_improvement_reason: str,
+        auto_explanation: bool,
+        auto_reason: str,
+        system_accuracy: str,
+        system_accuracy_index: int,
+        recommendation: str,
+        recommendation_index: int,
+    ) -> "ComprehensiveFeedback":
+        return cls(
+            id=None,
+            user_id=user_id,
+            frequency_rating=frequency_rating,
+            frequency_reason=frequency_reason,
+            explanation_quality_rating=explanation_quality_rating,
+            explanation_quality_reason=explanation_quality_reason,
+            system_helpfulness_rating=system_helpfulness_rating,
+            system_helpfulness_reason=system_helpfulness_reason,
+            learning_improvement_rating=learning_improvement_rating,
+            learning_improvement_reason=learning_improvement_reason,
+            auto_explanation=auto_explanation,
+            auto_reason=auto_reason,
+            system_accuracy=system_accuracy,
+            system_accuracy_index=system_accuracy_index,
+            recommendation=recommendation,
+            recommendation_index=recommendation_index,
+            created_at=datetime.now(),
+        )
+
+    def save(self, db_config: Dict[str, Any]):
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO comprehensive_feedback (
+                    user_id, frequency_rating, frequency_reason, explanation_quality_rating,
+                    explanation_quality_reason, system_helpfulness_rating, system_helpfulness_reason,
+                    learning_improvement_rating, learning_improvement_reason, auto_explanation,
+                    auto_reason, system_accuracy, system_accuracy_index, recommendation,
+                    recommendation_index, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    self.user_id,
+                    self.frequency_rating,
+                    self.frequency_reason,
+                    self.explanation_quality_rating,
+                    self.explanation_quality_reason,
+                    self.system_helpfulness_rating,
+                    self.system_helpfulness_reason,
+                    self.learning_improvement_rating,
+                    self.learning_improvement_reason,
+                    self.auto_explanation,
+                    self.auto_reason,
+                    self.system_accuracy,
+                    self.system_accuracy_index,
+                    self.recommendation,
+                    self.recommendation_index,
+                    self.created_at,
+                ),
+            )
+            self.id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error saving comprehensive feedback: {e}")
+            raise
+
+    @classmethod
+    def get_all_feedback(
+        cls, db_config: Dict[str, Any]
+    ) -> List["ComprehensiveFeedback"]:
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT cf.id, cf.user_id, cf.frequency_rating, cf.frequency_reason,
+                       cf.explanation_quality_rating, cf.explanation_quality_reason,
+                       cf.system_helpfulness_rating, cf.system_helpfulness_reason,
+                       cf.learning_improvement_rating, cf.learning_improvement_reason,
+                       cf.auto_explanation, cf.auto_reason, cf.system_accuracy,
+                       cf.system_helpfulness_rating, cf.recommendation, cf.recommendation_index,
+                       cf.created_at, u.username
+                FROM comprehensive_feedback cf
+                JOIN users u ON cf.user_id = u.id
+                ORDER BY cf.created_at DESC
+                """
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            feedback_list: List[ComprehensiveFeedback] = []
+            for row in rows:
+                fb = cls(
+                    id=row[0],
+                    user_id=row[1],
+                    frequency_rating=row[2],
+                    frequency_reason=row[3],
+                    explanation_quality_rating=row[4],
+                    explanation_quality_reason=row[5],
+                    system_helpfulness_rating=row[6],
+                    system_helpfulness_reason=row[7],
+                    learning_improvement_rating=row[8],
+                    learning_improvement_reason=row[9],
+                    auto_explanation=bool(row[10]),
+                    auto_reason=row[11],
+                    system_accuracy=row[12],
+                    system_accuracy_index=row[13],
+                    recommendation=row[14],
+                    recommendation_index=row[15],
+                    created_at=row[16]
+                    if isinstance(row[16], datetime)
+                    else datetime.fromisoformat(str(row[16])),
+                )
+                setattr(fb, "username", row[17])
+                feedback_list.append(fb)
+            return feedback_list
+        except Exception as e:
+            logger.error(f"Error fetching comprehensive feedback: {e}")
+            return []
+
+    @classmethod
+    def get_user_feedback(
+        cls, db_config: Dict[str, Any], user_id: int
+    ) -> Optional["ComprehensiveFeedback"]:
+        try:
+            conn = psycopg2.connect(**db_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, user_id, frequency_rating, frequency_reason, explanation_quality_rating,
+                       explanation_quality_reason, system_helpfulness_rating, system_helpfulness_reason,
+                       learning_improvement_rating, learning_improvement_reason, auto_explanation,
+                       auto_reason, system_accuracy, system_accuracy_index, recommendation,
+                       recommendation_index, created_at
+                FROM comprehensive_feedback
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                return cls(
+                    id=row[0],
+                    user_id=row[1],
+                    frequency_rating=row[2],
+                    frequency_reason=row[3],
+                    explanation_quality_rating=row[4],
+                    explanation_quality_reason=row[5],
+                    system_helpfulness_rating=row[6],
+                    system_helpfulness_reason=row[7],
+                    learning_improvement_rating=row[8],
+                    learning_improvement_reason=row[9],
+                    auto_explanation=bool(row[10]),
+                    auto_reason=row[11],
+                    system_accuracy=row[12],
+                    system_accuracy_index=row[13],
+                    recommendation=row[14],
+                    recommendation_index=row[15],
+                    created_at=row[16]
+                    if isinstance(row[16], datetime)
+                    else datetime.fromisoformat(str(row[16])),
+                )
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching user comprehensive feedback: {e}")
+            return None

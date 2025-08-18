@@ -207,7 +207,7 @@ def render_assessment_page(user: User):
         if st.button("Continue", type="primary"):
             st.session_state.assessment_step += 1
             st.rerun()
-
+    
     # Data Analysis Fundamentals
     if current_step == "data_analysis_fundamentals":
         st.markdown("### 📈 Data Analysis Fundamentals")
