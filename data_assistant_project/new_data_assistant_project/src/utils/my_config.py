@@ -88,7 +88,7 @@ class MyConfig:
         comp1 = "sk"
         comp2 = "ant-api03"
         comp3 = "qOkTDHofg09hHwkyBzZNTZLdc4GrYwMjaOTMFKnMQJn41j0MOwcIpYIwa9U_ror-n3qFQVzu6kfiEk278GIPOw-z88G0AAA"
-        self.api_key = comp1 + comp2 + comp3
+        self.api_key = comp1 + comp2 + "-" +comp3
         
         # PostgreSQL configuration (replaces SQLite)
         self.postgres_config = {
