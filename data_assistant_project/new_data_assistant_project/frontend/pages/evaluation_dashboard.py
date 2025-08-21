@@ -11,35 +11,33 @@ from pathlib import Path
 def robust_import_modules():
     """Import required modules with multiple fallback strategies."""
     
-    # Strategy 1: Try absolute imports (local development)
+    # Strategy 1: Try PostgreSQL imports first (Docker/production - new structure)
     try:
-        from new_data_assistant_project.src.database.models import ExplanationFeedback, User, ChatSession
-        from new_data_assistant_project.src.utils.path_utils import get_absolute_path
-        from new_data_assistant_project.src.utils.auth_manager import AuthManager
-        print("✅ Evaluation Dashboard: Absolute imports successful")
-        return ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager
+        from src.database.postgres_models import ExplanationFeedback, User, ChatSession, ComprehensiveFeedback
+        from src.utils.auth_manager import AuthManager
+        print("✅ Evaluation Dashboard: PostgreSQL imports successful")
+        return ExplanationFeedback, User, ChatSession, None, AuthManager
     except ImportError as e:
-        print(f"❌ Absolute imports failed: {e}")
+        print(f"❌ PostgreSQL imports failed: {e}")
     
-    # Strategy 2: Try direct imports (Docker/production - new structure)
+    # Strategy 2: Try relative PostgreSQL imports (fallback)
+    try:
+        from database.postgres_models import ExplanationFeedback, User, ChatSession, ComprehensiveFeedback
+        from utils.auth_manager import AuthManager
+        print("✅ Evaluation Dashboard: Relative PostgreSQL imports successful")
+        return ExplanationFeedback, User, ChatSession, None, AuthManager
+    except ImportError as e:
+        print(f"❌ Relative PostgreSQL imports failed: {e}")
+    
+    # Strategy 3: Try direct imports (fallback to SQLite)
     try:
         from src.database.models import ExplanationFeedback, User, ChatSession
         from src.utils.path_utils import get_absolute_path
         from src.utils.auth_manager import AuthManager
-        print("✅ Evaluation Dashboard: Direct imports successful")
+        print("✅ Evaluation Dashboard: SQLite fallback imports successful")
         return ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager
     except ImportError as e:
-        print(f"❌ Direct imports failed: {e}")
-    
-    # Strategy 3: Try relative imports (fallback)
-    try:
-        from src.database.models import ExplanationFeedback, User, ChatSession
-        from src.utils.path_utils import get_absolute_path
-        from src.utils.auth_manager import AuthManager
-        print("✅ Evaluation Dashboard: Relative imports successful")
-        return ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager
-    except ImportError as e:
-        print(f"❌ Relative imports failed: {e}")
+        print(f"❌ SQLite fallback imports failed: {e}")
     
     # Strategy 4: Manual path manipulation
     try:
@@ -47,30 +45,36 @@ def robust_import_modules():
         sys.path.insert(0, str(current_dir))
         sys.path.insert(0, str(current_dir / 'src'))
         
-        from database.models import ExplanationFeedback, User, ChatSession
-        from utils.path_utils import get_absolute_path
+        from database.postgres_models import ExplanationFeedback, User, ChatSession, ComprehensiveFeedback
         from utils.auth_manager import AuthManager
-        print("✅ Evaluation Dashboard: Manual path imports successful")
-        return ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager
+        print("✅ Evaluation Dashboard: Manual path PostgreSQL imports successful")
+        return ExplanationFeedback, User, ChatSession, None, AuthManager
     except ImportError as e:
-        print(f"❌ Manual path imports failed: {e}")
-        st.error(f"❌ Could not import required modules: {e}")
-        st.stop()
+        print(f"❌ Manual path PostgreSQL imports failed: {e}")
+        try:
+            from database.models import ExplanationFeedback, User, ChatSession
+            from utils.path_utils import get_absolute_path
+            from utils.auth_manager import AuthManager
+            print("✅ Evaluation Dashboard: Manual path SQLite fallback successful")
+            return ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager
+        except ImportError as e2:
+            print(f"❌ Manual path SQLite fallback failed: {e2}")
+            st.error(f"❌ Could not import required modules: {e2}")
+            st.stop()
 
 # Import modules
 ExplanationFeedback, User, ChatSession, get_absolute_path, AuthManager = robust_import_modules()
 
-# Import ComprehensiveFeedback model
+# Extract ComprehensiveFeedback from the import result
 try:
-    from new_data_assistant_project.src.database.models import ComprehensiveFeedback
-    print("✅ ComprehensiveFeedback import successful")
+    from src.database.postgres_models import ComprehensiveFeedback
 except ImportError:
     try:
         from src.database.models import ComprehensiveFeedback
-        print("✅ ComprehensiveFeedback direct import successful")
     except ImportError:
-        print("❌ ComprehensiveFeedback import failed")
         ComprehensiveFeedback = None
+
+# ComprehensiveFeedback is now imported in robust_import_modules()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
