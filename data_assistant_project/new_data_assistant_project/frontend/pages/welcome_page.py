@@ -57,6 +57,8 @@ User, AuthManager = robust_import_modules()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+warning_text = "Don't use the page-navigation buttons on the left sidebar. Use the buttons on the bottom of the page."
+
 def render_welcome_page(user: User):
     """Render the welcome page with study context and navigation."""
     st.title("INTELLIGENT EXPLANATION IN LLM BASED DATA ASSISTANTS")
@@ -70,7 +72,7 @@ def render_welcome_page(user: User):
     For accurate results, please follow the task descriptions closely and complete the entire case study in one uninterrupted session.
 
     **Important:**
-    Don't use the page-navigation buttons on the left sidebar. Use the buttons on the bottom of the page.
+    :red[Don't use the page-navigation buttons on the left sidebar. Use the buttons on the bottom of the page.]
     """)
     
     st.markdown("### ✅ Consent")
