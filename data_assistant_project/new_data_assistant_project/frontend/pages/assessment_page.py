@@ -510,3 +510,28 @@ def render_assessment_page(user: User):
             st.session_state.assessment_step = 0
             st.session_state.current_page = "task"
             st.rerun() 
+
+    # Navigation
+    st.markdown("---")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("Welcome"):
+            st.session_state.current_page = "welcome"
+            st.rerun()
+    
+    with col2:
+        if st.button("Assessment"):
+            st.session_state.current_page = "assessment"
+            st.rerun()
+    
+    with col3:
+        if st.button("Task Phase"):
+            st.session_state.current_page = "task"
+            st.rerun()
+    
+    with col4:
+        if st.button("Feedback", disabled=not st.session_state.get('tasks_completed', False)):
+            st.session_state.current_page = "feedback"
+            st.rerun() 

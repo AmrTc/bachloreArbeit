@@ -509,7 +509,7 @@ def render_task_page(user: User):
             st.rerun()
     
     with col3:
-        if st.button("Task Phase", disabled=True):
+        if st.button("Task Phase"):
             st.session_state.current_page = "task"
             st.rerun()
     

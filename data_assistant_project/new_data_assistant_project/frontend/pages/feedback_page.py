@@ -308,6 +308,6 @@ def render_feedback_page(user: User):
             st.rerun()
     
     with col4:
-        if st.button("Feedback", disabled=True):
+        if st.button("Feedback"):
             st.session_state.current_page = "feedback"
             st.rerun() 
