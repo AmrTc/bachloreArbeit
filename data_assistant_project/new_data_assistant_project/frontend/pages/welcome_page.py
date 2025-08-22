@@ -61,12 +61,13 @@ def render_welcome_page(user: User):
     """Render the welcome page with study context and navigation."""
     st.title("INTELLIGENT EXPLANATION IN LLM BASED DATA ASSISTANTS")
     st.markdown("""
-    Welcome to the "research study" on intelligent explainable data assistance.
-    Your mission is to analyze business data and help evaluate the assistant's capabilities.
-    The study has three phases: Assessment, Task, and Feedback. It is important that you complete 
-    all three phases. 
-    During the case study, it is important to adhere to the task descriptions. 
-    The case study should ideally not be interrupted and should be completed in one session.
+    Welcome to our research study on intelligent explainable data assistance. 
+    This study consists of three phases: Assessment, Task, and Feedback. Please ensure you complete all phases for valid results.
+    Your mission is to analyze business data while helping us evaluate our assistant's capabilities. 
+    You will work with an LLM-based data assistant that intelligently determines when explanations are needed based on each task's complexity.
+    Your role involves describing analysis tasks to the assistant using the provided templates on the task page. 
+    Once the assistant completes each task, it will ask whether you required an explanation and how satisfied you were with any explanations provided.
+    For accurate results, please follow the task descriptions closely and complete the entire case study in one uninterrupted session.
 
     **Important:**
     Don't use the page-navigation buttons on the left sidebar. Use the buttons on the bottom of the page.

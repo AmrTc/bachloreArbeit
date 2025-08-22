@@ -143,7 +143,7 @@ def render_feedback_page(user: User):
     
     # Question 4: Manual trigger preference
     st.markdown("### 4. Manual Trigger Preference")
-    st.markdown("Would you prefer a system where you can trigger explanations manually?")
+    st.markdown("Would you rather prefer a system where you can trigger explanations manually or a systems which decides when you need explanations?")
     
     manual_trigger = st.radio(
         "Manual trigger preference:",
@@ -166,7 +166,7 @@ def render_feedback_page(user: User):
     
     # Question 5: Automatic explanation preference
     st.markdown("### 5. Automatic Explanation Preference")
-    st.markdown("Would you prefer a system that automatically provides explanations?")
+    st.markdown("Would you prefer a system that automatically provides explanations a systems which decides when you need explanations?")
     
     auto_explanation = st.radio(
         "Automatic explanation preference:",
@@ -204,7 +204,7 @@ def render_feedback_page(user: User):
     
     # Question 7: Recommendation
     st.markdown("### 7. Recommendation")
-    st.markdown("Would you recommend the use of an intelligent system for your Sales Department (if you owned a company)?")
+    st.markdown("Would you recommend the use of an intelligent explainable LLM Data Assistant system for corporation purpose?")
     
     recommendation = st.radio(
         "Recommendation:",
@@ -274,10 +274,7 @@ def render_feedback_page(user: User):
             - Task Phase: ✅ Complete  
             - Feedback Phase: ✅ Complete
             
-            **Your contribution helps:**
-            - Improve AI systems for data analysis
-            - Develop better user experiences
-            - Advance adaptive learning systems
+            **Your contribution helps to improve the research in the field of explainable Data Assistant**
             
             You may now close this browser window.
             """)
