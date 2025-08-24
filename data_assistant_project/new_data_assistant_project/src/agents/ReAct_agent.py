@@ -266,29 +266,37 @@ This is a sample retail/superstore dataset with order information, customer deta
     
     def _generate_sql_with_reasoning(self, user_query: str) -> Tuple[str, str]:
         """
-        Generate SQL query using ReAct reasoning pattern with improved error handling.
+        Generate SQL query using ReAct reasoning pattern with Extended Thinking.
         Returns both the SQL query and the reasoning process.
         """
-        system_prompt = f"""You are an expert SQL analyst following the ReAct (Reasoning and Acting) approach.
+        system_prompt = f"""You are an expert SQL analyst following the ReAct (Reasoning and Acting) approach with extended thinking capabilities.
         
         {self.schema_info}
         
         IMPORTANT: All SQL operations are now allowed. You can generate any type of SQL query.
         
-        For the given natural language query, follow this ReAct pattern:
+        Use extended thinking to show your reasoning process step by step. Think through the problem systematically using the ReAct pattern:
+        
         1. THOUGHT: Analyze what the user is asking for
-        2. ACTION: Determine what SQL operations are needed
+        2. ACTION: Determine what SQL operations are needed  
         3. OBSERVATION: Consider the database schema and available tables
         4. THOUGHT: Plan the SQL query structure
         5. ACTION: Write the final SQL query
         
-        Provide both your reasoning process and the final SQL query.
-        Be precise and consider performance implications.
-        You can generate any SQL operation including SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, etc.
+        IMPORTANT SQL GENERATION RULES:
+        - Generate ONLY ONE SQL SELECT statement 
+        - Do NOT use multiple SELECT statements or UNION operations
+        - Keep queries simple and focused on the main request
+        - Use CTEs (WITH clauses) only if absolutely necessary
+        - Avoid complex multiple-statement queries
+        - Focus on answering the core question with ONE clear query
         
-        Format your response as:
+        Show your complete thinking process, then provide the final SQL query.
+        Be precise and consider performance implications.
+        
+        After your thinking, format your final response as:
         REASONING:
-        [Your step-by-step reasoning]
+        [Summary of your reasoning process]
         
         SQL:
         [Your SQL query - MUST be valid PostgreSQL syntax]"""
@@ -299,50 +307,68 @@ This is a sample retail/superstore dataset with order information, customer deta
             
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=1000,
+                max_tokens=2000,  # Increased for Extended Thinking
                 temperature=0.1,
                 system=system_prompt,
                 messages=[{
-                    "role": "user",
+                    "role": "user", 
                     "content": f"Generate SQL for: {user_query}"
                 }]
             )
             
-            # Extract content from the response properly for TextBlock objects
-            content = ""
+            # Extract content from the response including thinking blocks
+            reasoning_text = ""
+            final_content = ""
+            
             for block in response.content:
-                if hasattr(block, 'text'):
-                    content += block.text
+                if hasattr(block, 'type'):
+                    if block.type == 'thinking':
+                        # Capture thinking content using correct field
+                        thinking_content = getattr(block, 'thinking', '')
+                        reasoning_text += f"THINKING:\n{thinking_content}\n\n"
+                    elif block.type == 'text':
+                        # Capture regular text content
+                        text_content = getattr(block, 'text', str(block))
+                        final_content += text_content
                 else:
-                    content += str(block)
+                    # Fallback for older format
+                    final_content += str(block)
             
-            logger.info(f"API response received: {len(content)} characters")
-            logger.debug(f"Raw API response: {content[:500]}...")
+            # Combine thinking and final content for logging
+            total_content = reasoning_text + final_content
+            logger.info(f"API response received: {len(total_content)} characters")
+            if reasoning_text:
+                logger.info(f"Extended thinking captured: {len(reasoning_text)} characters")
+            logger.debug(f"Raw API response: {total_content[:500]}...")
             
-            # Content successfully extracted from API
+            # Use final_content for SQL extraction, reasoning_text + extracted reasoning for full reasoning
+            content_to_process = final_content or total_content
             
-            # Extract reasoning and SQL
-            if "REASONING:" in content and "SQL:" in content:
-                parts = content.split("SQL:")
-                reasoning = parts[0].replace("REASONING:", "").strip()
+            # Extract reasoning and SQL from the final content
+            if "REASONING:" in content_to_process and "SQL:" in content_to_process:
+                parts = content_to_process.split("SQL:")
+                extracted_reasoning = parts[0].replace("REASONING:", "").strip()
                 sql_query = parts[1].strip()
+                
+                # Combine extended thinking with extracted reasoning
+                full_reasoning = reasoning_text + "FINAL REASONING:\n" + extracted_reasoning if reasoning_text else extracted_reasoning
                 
                 # Clean SQL query comprehensively
                 sql_query = self._clean_sql_query(sql_query)
                 
                 logger.info(f"SQL query extracted: {sql_query[:100]}...")
                 
-                return sql_query, reasoning
+                return sql_query, full_reasoning
             else:
                 # Fallback if format is not followed - try to extract SQL anyway
                 logger.warning("API response format not as expected, trying fallback extraction")
-                cleaned_content = self._clean_sql_query(content)
+                cleaned_content = self._clean_sql_query(content_to_process)
                 if cleaned_content:
                     logger.info(f"Fallback SQL extraction successful: {cleaned_content[:100]}...")
-                    return cleaned_content, "Reasoning not available"
+                    return cleaned_content, reasoning_text or "Reasoning not available"
                 else:
                     logger.error("No SQL query could be extracted from API response")
-                    return "", "Could not extract SQL from response"
+                    return "", reasoning_text or "Could not extract SQL from response"
                 
         except Exception as e:
             logger.error(f"Error generating SQL: {e}")
@@ -402,7 +428,8 @@ This is a sample retail/superstore dataset with order information, customer deta
                 logger.info(f"Query executed successfully. Complexity: {complexity_score}, Rows: {len(result_df)}, Time: {execution_time:.2f}s")
                 logger.info(f"Reasoning: {reasoning[:100]}...")
                 
-                return QueryResult(
+                # Create QueryResult with reasoning
+                query_result = QueryResult(
                     success=True,
                     data=result_df,
                     sql_query=sql_query,
@@ -410,6 +437,11 @@ This is a sample retail/superstore dataset with order information, customer deta
                     execution_time=execution_time,
                     complexity_score=complexity_score
                 )
+                
+                # Add reasoning as an attribute (even though not in dataclass)
+                query_result.reasoning = reasoning
+                
+                return query_result
                 
             except psycopg2.Error as e:
                 # Log the actual error for debugging but return user-friendly message
@@ -439,25 +471,28 @@ This is a sample retail/superstore dataset with order information, customer deta
     
     def get_reasoning_explanation(self, sql_query: str, user_query: str) -> str:
         """
-        Generate detailed reasoning explanation for the SQL query using Claude's extended thinking.
+        Generate detailed reasoning explanation for the SQL query using Claude's Extended Thinking.
         """
         system_prompt = (
-            "You are an expert SQL educator. "
-            "Explain the given SQL query step by step using extended thinking. "
-            "Show your reasoning as thinking blocks, so the user can follow your logic."
+            "You are an expert SQL educator using extended thinking to provide comprehensive explanations. "
+            "Use your thinking process to analyze the SQL query step by step, then provide a clear explanation. "
+            "Show your complete reasoning process, then summarize the key points for the user."
         )
 
         user_prompt = (
             f"Original question: {user_query}\n\n"
             f"SQL Query to explain:\n{sql_query}\n\n"
-            "Please explain the SQL query step by step. "
-            "Think out loud and show your reasoning as thinking blocks."
+            "Please use extended thinking to analyze this SQL query thoroughly, then provide a clear explanation of:\n"
+            "1. What the query does\n"
+            "2. How each part works\n"
+            "3. Why this approach was chosen\n"
+            "4. Any important considerations"
         )
 
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=1000,
+                max_tokens=1500,  # Increased for Extended Thinking
                 temperature=0.2,
                 system=system_prompt,
                 messages=[{
@@ -466,16 +501,36 @@ This is a sample retail/superstore dataset with order information, customer deta
                 }]
             )
 
-            # Sammle alle Thinking/Text-Blöcke
-            explanation = ""
+            # Collect both thinking and text blocks
+            thinking_content = ""
+            explanation_content = ""
+            
             for block in response.content:
-                explanation += str(block) + "\n\n"
+                if hasattr(block, 'type'):
+                    if block.type == 'thinking':
+                        # Use correct 'thinking' field for thinking blocks
+                        thinking_text = getattr(block, 'thinking', '')
+                        thinking_content += f"THINKING PROCESS:\n{thinking_text}\n\n"
+                    elif block.type == 'text':
+                        # Use correct 'text' field for text blocks
+                        text_content = getattr(block, 'text', str(block))
+                        explanation_content += text_content
+                else:
+                    # Fallback for older format
+                    explanation_content += str(block)
 
-            return explanation.strip() if explanation else "No reasoning blocks found."
+            # Combine thinking and explanation
+            full_explanation = ""
+            if thinking_content:
+                full_explanation += thinking_content
+            if explanation_content:
+                full_explanation += "EXPLANATION:\n" + explanation_content
+
+            return full_explanation.strip() if full_explanation else "No explanation content found."
 
         except Exception as e:
             logger.error(f"Error generating extended thinking explanation: {e}")
-            return "Explanation unavailable due to error."
+            return f"Explanation unavailable due to error: {str(e)}"
     
     def validate_sql_syntax(self, sql_query: str) -> Tuple[bool, str]:
         """Validate SQL syntax without execution using PostgreSQL."""

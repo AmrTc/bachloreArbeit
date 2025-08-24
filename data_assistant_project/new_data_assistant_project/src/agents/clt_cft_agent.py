@@ -564,8 +564,10 @@ Return ONLY a valid JSON object with these exact field names and values.
         
         user_profile = self.user_profiles[user_id]
         
-        # Use complexity score from ReAct Agent
-        intrinsic_load = react_result.complexity_score
+        # Use complexity score from ReAct Agent and scale it appropriately
+        # ReAct complexity is 1-5, we need to scale to meaningful range for CLT assessment
+        base_complexity = react_result.complexity_score
+        intrinsic_load = base_complexity * 2  # Scale 1-5 to 2-10 for better CLT assessment
         
         # Classify the SQL task
         task_concept = self._classify_sql_task(react_result.sql_query)
@@ -600,7 +602,7 @@ Return ONLY a valid JSON object with these exact field names and values.
                 "cft_misfit_penalty": 0.0,
                 "final_complexity_score": intrinsic_load
             },
-            user_capability_threshold=user_profile.sql_expertise_level * 6.0,  # Convert 1-5 scale to 6-30 scale
+            user_capability_threshold=user_profile.sql_expertise_level * 2.0,  # Scale 1-5 to 2-10 to match complexity
             final_complexity_score=intrinsic_load
         )
     
@@ -703,8 +705,8 @@ Should this user receive an explanation for this query? What type of explanation
             Dictionary with explanation_needed, explanation_type, and reasoning
         """
         # Simple fallback: explanation needed if complexity exceeds expertise
-        # Convert user expertise from 1-5 scale to 0-30 scale for comparison
-        user_expertise_score = user_sql_expertise * 6  # 1->6, 2->12, 3->18, 4->24, 5->30
+        # Scale user expertise to match our complexity scale (2-10)
+        user_expertise_score = user_sql_expertise * 2  # 1->2, 2->4, 3->6, 4->8, 5->10
         
         if task_complexity > user_expertise_score:
             explanation_needed = True
@@ -955,8 +957,8 @@ Should this user receive an explanation for this query? What type of explanation
         
         if react_result.success and react_result.data is not None:
             # Limit data based on cognitive capacity vs load
-            # Convert cognitive load capacity from 1-5 scale to 0-30 scale for comparison
-            cognitive_capacity_score = user_profile.cognitive_load_capacity * 6  # 1->6, 2->12, 3->18, 4->24, 5->30
+            # Scale cognitive capacity to match our complexity scale (2-10)
+            cognitive_capacity_score = user_profile.cognitive_load_capacity * 2  # 1->2, 2->4, 3->6, 4->8, 5->10
             
             if cognitive_assessment.intrinsic_load > cognitive_capacity_score:
                 max_rows = min(5, len(react_result.data))  # High load = fewer rows
@@ -1258,8 +1260,8 @@ Please provide a {assessment.explanation_type} explanation for the {assessment.t
         profile.prior_query_history = profile.prior_query_history[-10:]
         
         # Update concept level if user handled high complexity well
-        # Convert threshold from old scale (4) to new scale (24)
-        complexity_threshold = 24  # 4 * 6 = 24 in new scale
+        # Use threshold on new complexity scale (2-10)
+        complexity_threshold = 8  # High complexity threshold on 2-10 scale
         
         if assessment.intrinsic_load >= complexity_threshold and not assessment.explanation_needed:
             current_level = profile.sql_concept_levels.get(assessment.task_sql_concept, 1)
