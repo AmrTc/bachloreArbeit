@@ -245,8 +245,6 @@ def render_feedback_page(user: User):
                 explanation_quality_reason=st.session_state.feedback_responses.get('quality_reason', ''),
                 system_helpfulness_rating=st.session_state.feedback_responses.get('helpfulness_rating', 3),
                 system_helpfulness_reason=st.session_state.feedback_responses.get('helpfulness_reason', ''),
-                learning_improvement_rating=st.session_state.feedback_responses.get('learning_rating', 3),
-                learning_improvement_reason=st.session_state.feedback_responses.get('learning_reason', ''),
                 auto_explanation=st.session_state.feedback_responses.get('auto_explanation', 'Yes') == 'Yes',
                 auto_reason=st.session_state.feedback_responses.get('auto_reason', ''),
                 system_accuracy=st.session_state.feedback_responses.get('system_accuracy', 'Somewhat'),

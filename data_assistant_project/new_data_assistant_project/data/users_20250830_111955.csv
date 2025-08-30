@@ -1,0 +1,25 @@
+id,username,password_hash,role,created_at,last_login,sql_expertise_level,cognitive_load_capacity,has_completed_assessment,sql_expertise,data_analysis_fundamentals,business_analytics,forecasting_statistics,data_visualization,domain_knowledge_retail,total_assessment_score,user_level_category,age,gender,profession,education_level,study_training
+17,Nainibrok,a961ece71d1d866e9c8b5d62288c7d001906b1d2ffbba99129eb1eb6f128c0ed,user,2025-08-28 15:40:14.997429,2025-08-28 15:40:43.695487,2,3,False,2,0,0,0,0,0,0,Beginner,,,,,
+14,feuerbrunst,15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225,user,2025-08-25 18:40:02.907155,2025-08-25 19:09:51.364711,3,1,True,0,1,4,4,0,4,13,Intermediate,22.0,Male,Student,Bachelor,BAE
+21,JD,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-29 13:53:17.979671,2025-08-29 14:16:29.290583,5,2,True,4,4,4,4,2,2,20,Advanced,27.0,Male,,Master,Mathematik
+24,Nessi,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-29 19:03:15.214020,2025-08-29 19:03:17.201197,1,1,True,0,1,2,0,0,0,3,Beginner,31.0,,,Bachelor,Kulturwirtschaft
+6,Tina,e9648f05c54fd6f53bf5b1ddfc3faa3cf93c1f86eeb82a54ee4b35f186ba59e5,user,2025-08-22 14:19:23.986310,2025-08-22 14:19:25.982002,4,2,True,4,3,2,1,4,4,18,Advanced,25.0,Female,Student,Master,Information Systems
+18,David,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-28 17:23:22.538451,2025-08-28 17:23:24.539626,1,1,True,0,2,0,0,0,0,2,Beginner,19.0,Male,,Bachlore,Jura
+13,McMike,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-25 14:39:29.213330,2025-08-25 20:58:11.703300,4,2,True,2,2,4,0,4,4,16,Advanced,27.0,Male,Kaufmann für Groß-und Außenhandel,Mittlere Reife,none
+7,Manuel,8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92,user,2025-08-22 14:46:45.860408,2025-08-22 14:54:53.217247,3,1,True,3,2,2,2,2,1,12,Intermediate,23.0,Male,Student,Bachelor,Wirtschaftsinformatik 
+1,admin,a387b4b86753da63ca14d399413fa2f3f444f4ed3149cda4b2de309ee116a734,admin,2025-08-18 11:29:55.092666,2025-08-30 09:01:43.621562,2,3,True,0,0,0,0,0,0,0,Beginner,,,,,
+12,Tester,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-24 15:25:14.573170,2025-08-24 15:25:16.559587,4,2,True,3,3,3,3,3,3,18,Advanced,25.0,Female,Test,Test,Test
+11,America,101735a1ab5b123f17b02a8b9f2d662cee3a0d6d08160781ddf1346ad6764233,user,2025-08-24 14:04:26.195468,2025-08-24 16:22:12.814567,4,2,True,1,4,4,4,2,2,17,Advanced,21.0,Male,Student,Bachelor,Information systems
+8,Bigm,e6f0c5813ce6eeb300b03fc2d59b78d800fb28b10bf9309faf81b8d782b034dc,user,2025-08-22 21:36:24.006825,2025-08-22 21:36:25.991166,2,3,False,2,0,0,0,0,0,0,Beginner,,,,,
+3,Billy,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-18 19:27:15.234828,2025-08-18 19:27:17.225723,2,3,False,2,0,0,0,0,0,0,Beginner,,,,,
+9,Bigm48,e6f0c5813ce6eeb300b03fc2d59b78d800fb28b10bf9309faf81b8d782b034dc,user,2025-08-22 21:36:38.780271,2025-08-22 21:36:40.775491,2,3,False,2,0,0,0,0,0,0,Beginner,,,,,
+5,LCCC,4389dccef84151b2987f4a21d0286fcbad0d7b81bbe9ec3a5e9e8af937763531,user,2025-08-19 11:02:07.230044,2025-08-19 11:02:09.219256,2,3,False,2,0,0,0,0,0,0,Beginner,,,,,
+19,Friedrich,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-29 12:08:00.716716,2025-08-29 12:45:52.361097,3,1,True,0,4,4,4,0,0,12,Intermediate,22.0,Male,,Bachelore,BAE
+4,LC,4389dccef84151b2987f4a21d0286fcbad0d7b81bbe9ec3a5e9e8af937763531,user,2025-08-19 11:01:48.653451,2025-08-19 11:02:52.721340,4,2,True,1,4,4,4,4,1,18,Advanced,22.0,Male,Student,Bachelor,Business Adminstration
+10,Rodri,377483a2b0af6f3d5cd728d89af2891edcd77d6514a779b467602582a33970dc,user,2025-08-22 23:20:15.371371,2025-08-22 23:20:17.370375,1,1,True,0,0,0,0,0,2,2,Beginner,23.0,Male,Logiistiker,Mittlere Reife,Ausbildung zum Fachlageristen
+15,SimonSays,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-27 20:14:48.650765,2025-08-27 20:38:56.207782,2,1,True,2,3,0,4,0,0,9,Novice,20.0,Female,Application Manager,Bachlore,Wirtschaftsinformatik
+22,Peanut,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-29 15:52:29.250672,2025-08-29 15:52:31.235461,5,3,True,1,4,4,4,4,4,21,Expert,23.0,Male,Werkstudent,Bachelor,Business Administration
+20,Joshi,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-29 13:03:14.163893,2025-08-29 13:03:16.155851,2,1,True,4,2,0,2,0,0,8,Novice,22.0,Male,,,Informatik 
+16,JackHive,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-27 20:31:25.847034,2025-08-27 20:31:27.840097,3,1,True,5,3,0,4,0,0,12,Intermediate,24.0,Male,Application Manager,Bachelor,Informatik
+2,Bernd,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-18 11:37:13.937871,2025-08-30 09:12:11.092484,1,1,True,0,1,0,0,0,0,1,Beginner,25.0,Male,test,Bachelor,KuWi
+23,Paolo,ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae,user,2025-08-29 18:15:56.275084,2025-08-29 18:15:58.267374,1,1,True,0,2,0,0,0,0,2,Beginner,20.0,Male,,Bachelor,JoKo
