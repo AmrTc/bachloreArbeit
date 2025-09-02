@@ -83,9 +83,9 @@ echo "require" | gcloud secrets create postgres-sslmode --data-file=-
 echo "✅ PostgreSQL SSL mode secret created"
 
 echo ""
-echo "🎉 All secrets created successfully!"
+echo "   All secrets created successfully!"
 echo ""
-echo "📋 Created secrets:"
+echo "   Created secrets:"
 echo "   - anthropic-api-key"
 echo "   - postgres-host"
 echo "   - postgres-database"

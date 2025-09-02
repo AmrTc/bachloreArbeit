@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: new_data_assistant_project
-Version: 0.1.0
-Requires-Python: >=3.8
-Requires-Dist: anthropic
-Requires-Dist: pandas
-Requires-Dist: numpy
-Dynamic: requires-dist
-Dynamic: requires-python
