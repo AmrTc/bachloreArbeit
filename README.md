@@ -1,8 +1,11 @@
 # Intelligent Explainable LLM-Based Data Assistant
 
-## System Documentation
-
 All necessary information about this system can be found in the accompanying bachelor thesis: **"To What Extent Can an Intelligent Explainable LLM-Based Data Assistant Predict When a User Requires an Explanation?"**
+
+## Local Execution
+
+The application can be executed locally using:
+streamlit run data_assistant_project/new_data_assistant_project/frontend/app.py
 
 ## Service Discontinuation Notice
 
