@@ -568,9 +568,9 @@ class ComprehensiveFeedback:
     def create_feedback(cls, user_id: int, frequency_rating: int, frequency_reason: str,
                        explanation_quality_rating: int, explanation_quality_reason: str,
                        system_helpfulness_rating: int, system_helpfulness_reason: str,
-                       learning_improvement_rating: int, learning_improvement_reason: str,
-                       auto_explanation: bool, auto_reason: str, system_accuracy: str,
-                       system_accuracy_index: int, recommendation: str, recommendation_index: int) -> 'ComprehensiveFeedback':
+                       learning_improvement_rating: int = 3, learning_improvement_reason: str = "",
+                       auto_explanation: bool = True, auto_reason: str = "", system_accuracy: str = "Somewhat",
+                       system_accuracy_index: int = 2, recommendation: str = "Yes", recommendation_index: int = 0) -> 'ComprehensiveFeedback':
         """Create new comprehensive feedback for research study."""
         return cls(
             id=None,
